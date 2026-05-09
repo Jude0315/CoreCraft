@@ -1,0 +1,6 @@
+node_modules/
+.env
+dist/
+build/
+Generated-Projects/
+Server/Generated-Temp/
