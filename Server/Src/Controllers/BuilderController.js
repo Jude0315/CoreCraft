@@ -102,10 +102,32 @@ const RemoveFeature = async (req, res) => {
   }
 };
 
+/*-----------------------------------------------------*/
+//Get suggestion
+
+const { GetSuggestions } = require("../Services/BuilderService");
+
+const GetFeatureSuggestions = async (req, res) => {
+  try {
+    const { appType } = req.params;
+
+    const Suggestions = GetSuggestions(appType);
+
+    res.json(Suggestions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/*-------------------------------------------------------- */
 module.exports = {
   CreateSession,
   GetSession,
   AddMessage,
   AddFeature,
   RemoveFeature,
+  GetFeatureSuggestions,
 };
+
+
+

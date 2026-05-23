@@ -6,6 +6,7 @@ const {
   AddMessage,
   AddFeature,
   RemoveFeature,
+  GetFeatureSuggestions,
 } = require("../Controllers/BuilderController");
 
 const AuthMiddleware = require("../Middleware/AuthMiddleware");
@@ -26,5 +27,9 @@ Router.post("/feature/:sessionId", AuthMiddleware, AddFeature);
 
 // Remove feature
 Router.post("/feature/remove/:sessionId", AuthMiddleware, RemoveFeature);
+
+//Sugestions
+
+Router.get("/suggestions/:appType", AuthMiddleware, GetFeatureSuggestions);
 
 module.exports = Router;
