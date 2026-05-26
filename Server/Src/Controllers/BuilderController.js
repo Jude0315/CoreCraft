@@ -1,5 +1,7 @@
 const RequirementSession = require("../Models/RequirementSession");
 
+const { GetSuggestions, DetectAppType } = require("../Services/BuilderService");
+
 // Create new session for a project
 const CreateSession = async (req, res) => {
   try {
@@ -43,6 +45,19 @@ const AddMessage = async (req, res) => {
     }
 
     Session.messages.push({ role, content });
+    
+    /*Extra function added to detect app type */
+
+    //  Detect app type
+if (!Session.appType && role === "user") {
+  const DetectedType = DetectAppType(content);
+
+  if (DetectedType) {
+    Session.appType = DetectedType;
+  }
+}
+
+/*-------------------------------- */
 
     await Session.save();
 
@@ -105,7 +120,7 @@ const RemoveFeature = async (req, res) => {
 /*-----------------------------------------------------*/
 //Get suggestion
 
-const { GetSuggestions } = require("../Services/BuilderService");
+
 
 const GetFeatureSuggestions = async (req, res) => {
   try {
@@ -120,6 +135,11 @@ const GetFeatureSuggestions = async (req, res) => {
 };
 
 /*-------------------------------------------------------- */
+ // Add message function
+
+
+
+
 module.exports = {
   CreateSession,
   GetSession,
