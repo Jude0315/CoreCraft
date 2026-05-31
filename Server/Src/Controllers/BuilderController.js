@@ -49,11 +49,20 @@ const AddMessage = async (req, res) => {
     /*Extra function added to detect app type */
 
     //  Detect app type
+// Detect app type and auto-add suggested features
 if (!Session.appType && role === "user") {
   const DetectedType = DetectAppType(content);
 
   if (DetectedType) {
     Session.appType = DetectedType;
+
+    // Get suggested features for detected app type
+    const Suggestions = GetSuggestions(DetectedType);
+
+    // Only populate if features are still empty
+    if (Session.features.length === 0) {
+      Session.features = Suggestions;
+    }
   }
 }
 
