@@ -1,4 +1,7 @@
-const FeatureMap = require("../../../Shared/Constants/FeatureMap");
+const {
+  FeatureMap,
+  FollowUpSuggestions,
+} = require("../../../Shared/Constants/FeatureMap");
 
 const GetSuggestions = (appType) => {
   if (!appType) return [];
@@ -6,8 +9,7 @@ const GetSuggestions = (appType) => {
   return FeatureMap[appType] || [];
 };
 
-/*App type detection  */
-
+// App type detection
 const DetectAppType = (message) => {
   const text = message.toLowerCase();
 
@@ -20,12 +22,15 @@ const DetectAppType = (message) => {
   return "";
 };
 
+// Follow-up suggestions
+const GetFollowUpSuggestions = (appType) => {
+  if (!appType) return [];
 
-/*--------------------------------- */
-
-
+  return FollowUpSuggestions[appType] || [];
+};
 
 module.exports = {
   GetSuggestions,
-   DetectAppType,
+  DetectAppType,
+  GetFollowUpSuggestions,
 };

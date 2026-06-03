@@ -1,6 +1,10 @@
 const RequirementSession = require("../Models/RequirementSession");
 
-const { GetSuggestions, DetectAppType } = require("../Services/BuilderService");
+const {
+  GetSuggestions,
+  DetectAppType,
+  GetFollowUpSuggestions,
+} = require("../Services/BuilderService");
 
 // Create new session for a project
 const CreateSession = async (req, res) => {
@@ -56,15 +60,18 @@ if (!Session.appType && role === "user") {
   if (DetectedType) {
     Session.appType = DetectedType;
 
-    // Get suggested features for detected app type
     const Suggestions = GetSuggestions(DetectedType);
 
-    // Only populate if features are still empty
     if (Session.features.length === 0) {
       Session.features = Suggestions;
     }
+
+    const FollowUps = GetFollowUpSuggestions(DetectedType);
+
+    Session.suggestions = FollowUps;
+    Session.currentStep = "feature_selection";
   }
-}
+} 
 
 /*-------------------------------- */
 

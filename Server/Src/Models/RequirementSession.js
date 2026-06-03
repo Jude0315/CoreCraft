@@ -27,10 +27,21 @@ const RequirementSessionSchema = new mongoose.Schema(
 
     messages: [
       {
-        role: String, // "user" or "assistant"
+        role: String,
         content: String,
       },
     ],
+
+    suggestions: [
+      {
+        type: String,
+      },
+    ],
+
+    currentStep: {
+      type: String,
+      default: "initial",
+    },
 
     finalized: {
       type: Boolean,
