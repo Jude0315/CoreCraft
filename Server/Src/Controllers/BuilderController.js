@@ -133,6 +133,68 @@ const RemoveFeature = async (req, res) => {
   }
 };
 
+const AcceptSuggestion = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { suggestion } = req.body;
+
+    const Session = await RequirementSession.findById(sessionId);
+
+    if (!Session) {
+      return res.status(404).json({
+        message: "Session not found",
+      });
+    }
+
+    Session.suggestions = Session.suggestions.filter(
+      (s) => s !== suggestion
+    );
+
+    if (!Session.features.includes(suggestion)) {
+      Session.features.push(suggestion);
+    }
+
+    await Session.save();
+
+    res.json(Session);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+const RejectSuggestion = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { suggestion } = req.body;
+
+    const Session = await RequirementSession.findById(sessionId);
+
+    if (!Session) {
+      return res.status(404).json({
+        message: "Session not found",
+      });
+    }
+
+    Session.suggestions = Session.suggestions.filter(
+      (s) => s !== suggestion
+    );
+
+    if (!Session.removedFeatures.includes(suggestion)) {
+      Session.removedFeatures.push(suggestion);
+    }
+
+    await Session.save();
+
+    res.json(Session);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 /*-----------------------------------------------------*/
 //Get suggestion
 
@@ -163,6 +225,8 @@ module.exports = {
   AddFeature,
   RemoveFeature,
   GetFeatureSuggestions,
+  AcceptSuggestion,
+  RejectSuggestion,
 };
 
 
