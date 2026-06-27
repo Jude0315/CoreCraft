@@ -29,8 +29,21 @@ const GetFollowUpSuggestions = (appType) => {
   return FollowUpSuggestions[appType] || [];
 };
 
+//Next Suggestion
+const DetermineNextStep = (Session) => {
+  if (
+    Session.currentStep === "feature_selection" &&
+    Session.suggestions.length === 0
+  ) {
+    return "refinement";
+  }
+
+  return Session.currentStep;
+};
+
 module.exports = {
   GetSuggestions,
   DetectAppType,
   GetFollowUpSuggestions,
+  DetermineNextStep,
 };
