@@ -25,6 +25,12 @@ const RequirementSessionSchema = new mongoose.Schema(
       },
     ],
 
+    requirements: [
+  {
+    type: String,
+  },
+],
+
     messages: [
       {
         role: String,

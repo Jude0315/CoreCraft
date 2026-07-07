@@ -1,5 +1,11 @@
-const { GenerateAiResponse } = require("../Services/AiService");
+const {
+  GenerateAiResponse,
+  ExtractRequirementsFromMessage,
+} = require("../Services/AiService");
+
+
 const RequirementSession = require("../Models/RequirementSession");
+
 
 const TestAiConnection = async (req, res) => {
   try {
@@ -78,12 +84,35 @@ const ContinueAiConversation = async (req, res) => {
     }
 
     // Save user's answer
-    Session.messages.push({
-      role: "user",
-      content,
-    });
+    // Save user's answer
+Session.messages.push({
+  role: "user",
+  content,
+});
 
-    await Session.save();
+// Extract structured requirements from user's answer
+const ExtractedData = await ExtractRequirementsFromMessage(content, Session);
+
+if (ExtractedData.featuresToAdd && Array.isArray(ExtractedData.featuresToAdd)) {
+  ExtractedData.featuresToAdd.forEach((feature) => {
+    if (!Session.features.includes(feature)) {
+      Session.features.push(feature);
+    }
+  });
+}
+
+if (
+  ExtractedData.requirementsToAdd &&
+  Array.isArray(ExtractedData.requirementsToAdd)
+) {
+  ExtractedData.requirementsToAdd.forEach((requirement) => {
+    if (!Session.requirements.includes(requirement)) {
+      Session.requirements.push(requirement);
+    }
+  });
+}
+
+await Session.save();
 
     // Generate next AI follow-up using updated session
     const AiReply = await GenerateAiResponse(Session);
