@@ -78,8 +78,54 @@ Rules:
   }
 };
 /*--------------------------------------------------------------------------------- */
+const GenerateRequirementSummary = async (session) => {
+  const model = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini";
 
+  const prompt = `
+You are CoreCraft's software requirements analyst.
+
+Create a clear final software requirement summary from the structured session data below.
+
+Application Type:
+${session.appType || "Not specified"}
+
+Selected Features:
+${session.features?.length
+  ? session.features.map((feature) => `- ${feature}`).join("\n")
+  : "- None"}
+
+Removed Features:
+${session.removedFeatures?.length
+  ? session.removedFeatures.map((feature) => `- ${feature}`).join("\n")
+  : "- None"}
+
+Functional Requirements:
+${session.requirements?.length
+  ? session.requirements.map((requirement) => `- ${requirement}`).join("\n")
+  : "- None"}
+
+Write a professional summary that:
+- Clearly explains the purpose of the application.
+- Describes the intended users.
+- Summarizes the major selected features.
+- Includes the important functional requirements.
+- Does not include removed features.
+- Does not generate source code.
+- Uses plain professional English.
+- Uses approximately 150 to 250 words.
+`;
+
+  const response = await client.responses.create({
+    model,
+    input: prompt,
+  });
+
+  return response.output_text;
+};
+
+/*------------------------------------------------------------------------------------ */
 module.exports = {
   GenerateAiResponse,
    ExtractRequirementsFromMessage,
+   GenerateRequirementSummary,
 };

@@ -26,10 +26,10 @@ const RequirementSessionSchema = new mongoose.Schema(
     ],
 
     requirements: [
-  {
-    type: String,
-  },
-],
+      {
+        type: String,
+      },
+    ],
 
     messages: [
       {
@@ -47,6 +47,15 @@ const RequirementSessionSchema = new mongoose.Schema(
     currentStep: {
       type: String,
       default: "initial",
+    },
+
+    requirementSummary: {
+      type: String,
+      default: "",
+    },
+
+    finalizedAt: {
+      type: Date,
     },
 
     finalized: {

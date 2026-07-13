@@ -4,6 +4,7 @@ const {
   TestAiConnection,
   GenerateSessionAiResponse,
   ContinueAiConversation,
+   FinalizeRequirements,
 } = require("../Controllers/AiController");
 
 const AuthMiddleware = require("../Middleware/AuthMiddleware");
@@ -27,5 +28,11 @@ Router.post(
 );
 
 /*---------------------------------------------------------*/
+Router.post(
+  "/finalize/:sessionId",
+  AuthMiddleware,
+  FinalizeRequirements
+);
+/*-------------------------------------------------------- */
 
 module.exports = Router;

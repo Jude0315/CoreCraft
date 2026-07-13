@@ -1,6 +1,7 @@
 const {
   GenerateAiResponse,
   ExtractRequirementsFromMessage,
+  GenerateRequirementSummary,
 } = require("../Services/AiService");
 
 
@@ -138,8 +139,64 @@ await Session.save();
 
 /*----------------------------------------------------------------------------------*/
 
+
+const FinalizeRequirements = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const Session = await RequirementSession.findById(sessionId);
+
+    if (!Session) {
+      return res.status(404).json({
+        message: "Session not found",
+      });
+    }
+
+    if (!Session.appType) {
+      return res.status(400).json({
+        message: "Application type has not been identified",
+      });
+    }
+
+    if (Session.features.length === 0) {
+      return res.status(400).json({
+        message: "At least one feature is required before finalization",
+      });
+    }
+
+    if (Session.requirements.length === 0) {
+      return res.status(400).json({
+        message: "At least one detailed requirement is required before finalization",
+      });
+    }
+
+    const Summary = await GenerateRequirementSummary(Session);
+
+    Session.requirementSummary = Summary;
+    Session.currentStep = "finalized";
+    Session.finalized = true;
+    Session.finalizedAt = new Date();
+
+    await Session.save();
+
+    res.json({
+      message: "Requirements finalized successfully",
+      summary: Summary,
+      session: Session,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+
+/*----------------------------------------------------------------------------------- */
+
 module.exports = {
   TestAiConnection,
   GenerateSessionAiResponse,
   ContinueAiConversation,
+  FinalizeRequirements,
 };
