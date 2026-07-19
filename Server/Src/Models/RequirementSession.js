@@ -54,6 +54,56 @@ const RequirementSessionSchema = new mongoose.Schema(
       default: "",
     },
 
+    /*-------------------------------------------- */
+
+    generationSpecification: {
+  appType: {
+    type: String,
+    default: "",
+  },
+
+  stack: {
+    type: String,
+    default: "MERN",
+  },
+
+  entities: [
+    {
+      type: String,
+    },
+  ],
+
+  pages: [
+    {
+      type: String,
+    },
+  ],
+
+  apiModules: [
+    {
+      type: String,
+    },
+  ],
+
+  features: [
+    {
+      type: String,
+    },
+  ],
+
+  requirements: [
+    {
+      type: String,
+    },
+  ],
+},
+
+specificationGeneratedAt: {
+  type: Date,
+},
+
+    /*----------------------------------------------------------------------------*/
+
     finalizedAt: {
       type: Date,
     },

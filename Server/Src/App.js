@@ -20,4 +20,9 @@ app.use("/api/projects", ProjectRoutes);
 app.use("/api/builder", BuilderRoutes);
 app.use("/api/ai", AiRoutes);
 
+app.use(
+  "/api/generation",
+  require("./Routes/GenerationRoutes")
+);
+
 module.exports = app;
