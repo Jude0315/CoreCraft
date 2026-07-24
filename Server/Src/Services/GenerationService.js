@@ -1,4 +1,17 @@
+
+const path = require("path");
+
+const {
+  GenerateSchemaFiles,
+} = require("../Generators/SchemaGenerator");
+
+const {
+  EnsureDirectoryExists,
+  WriteGeneratedFile,
+} = require("../Utils/FileWriter");
+
 const GenerateSpecification = (session) => {
+    
   if (!session) {
     throw new Error("Requirement session is required");
   }
@@ -313,9 +326,73 @@ const DetectApiModules = (
   return Array.from(detectedModules);
 };
 
+const CreateSchemaFiles = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error(
+      "Project ID is required"
+    );
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const schemaFiles =
+    GenerateSchemaFiles(specification);
+
+  if (schemaFiles.length === 0) {
+    throw new Error(
+      "No entities were found for schema generation"
+    );
+  }
+
+  const projectFolderName =
+    `${specification.appType || "Application"}-${projectId}`;
+
+  const modelsDirectory = path.join(
+    process.cwd(),
+    "..",
+    "Generated-Projects",
+    projectFolderName,
+    "Server",
+    "Src",
+    "Models"
+  );
+
+  EnsureDirectoryExists(modelsDirectory);
+
+  const generatedFiles = schemaFiles.map(
+    (schemaFile) => {
+      const filePath = WriteGeneratedFile(
+        modelsDirectory,
+        schemaFile.filename,
+        schemaFile.content
+      );
+
+      return {
+        entity: schemaFile.entity,
+        filename: schemaFile.filename,
+        filePath,
+      };
+    }
+  );
+
+  return {
+    projectFolderName,
+    modelsDirectory,
+    generatedFiles,
+  };
+};
+
 module.exports = {
   GenerateSpecification,
   DetectEntities,
   DetectPages,
   DetectApiModules,
+  CreateSchemaFiles,
 };
