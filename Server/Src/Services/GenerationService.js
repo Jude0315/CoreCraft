@@ -1,6 +1,9 @@
 
 const path = require("path");
 
+const {
+  GenerateFrontendFiles,
+} = require("../Generators/FrontendGenerator");
 
 const {
   GenerateBackendFiles,
@@ -483,6 +486,66 @@ const CreateBackendFiles = (
 };
 
 /*------------------------------------------------------------- */
+const CreateFrontendFiles = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error("Project ID is required");
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const frontendFiles =
+    GenerateFrontendFiles(specification);
+
+  const projectFolderName =
+    `${specification.appType || "Application"}-${projectId}`;
+
+  const pagesDirectory = path.join(
+    process.cwd(),
+    "..",
+    "Generated-Projects",
+    projectFolderName,
+    "Client",
+    "src",
+    "Pages"
+  );
+
+  EnsureDirectoryExists(pagesDirectory);
+
+  const generatedPages =
+    frontendFiles.pageFiles.map(
+      (pageFile) => {
+        const filePath =
+          WriteGeneratedFile(
+            pagesDirectory,
+            pageFile.filename,
+            pageFile.content
+          );
+
+        return {
+          page: pageFile.page,
+          componentName:
+            pageFile.componentName,
+          filename: pageFile.filename,
+          filePath,
+        };
+      }
+    );
+
+  return {
+    projectFolderName,
+    pagesDirectory,
+    generatedPages,
+  };
+};
+
+/*-------------------------------------------------------------- */
 
 module.exports = {
   GenerateSpecification,
@@ -491,4 +554,5 @@ module.exports = {
   DetectApiModules,
   CreateSchemaFiles,
   CreateBackendFiles,
+  CreateFrontendFiles,
 };

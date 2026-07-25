@@ -6,6 +6,7 @@ const {
   GenerateSpecification,
   CreateSchemaFiles,
   CreateBackendFiles,
+  CreateFrontendFiles,
 } = require("../Services/GenerationService");
 
 const CreateGenerationSpecification = async (
@@ -201,9 +202,70 @@ const GenerateBackend = async (
 };
 
 /*---------------------------------------------------------- */
+const GenerateFrontend = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const session = await RequirementSession.findById(
+      sessionId
+    );
+
+    if (!session) {
+      return res.status(404).json({
+        message: "Requirement session not found",
+      });
+    }
+
+    if (!session.finalized) {
+      return res.status(400).json({
+        message:
+          "Requirements must be finalized before frontend generation",
+      });
+    }
+
+    if (
+      !session.generationSpecification ||
+      !session.generationSpecification.pages ||
+      session.generationSpecification.pages.length === 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Generation specification must be created before frontend generation",
+      });
+    }
+
+    const result = CreateFrontendFiles(
+      session.project.toString(),
+      session.generationSpecification
+    );
+
+    return res.status(200).json({
+      message:
+        "Frontend files generated successfully",
+      projectFolder:
+        result.projectFolderName,
+      pages:
+        result.generatedPages,
+    });
+  } catch (error) {
+    console.error(
+      "Frontend generation error:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        error.message ||
+        "Failed to generate frontend files",
+    });
+  }
+};
+
+/*---------------------------------------------------------- */
 
 module.exports = {
   CreateGenerationSpecification,
   GenerateSchemas,
   GenerateBackend,
+  GenerateFrontend,
 };

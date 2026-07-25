@@ -4,6 +4,7 @@ const {
   CreateGenerationSpecification,
    GenerateSchemas,
     GenerateBackend,
+    GenerateFrontend,
 } = require("../Controllers/GenerationController");
 
 const AuthMiddleware = require(
@@ -28,6 +29,12 @@ Router.post(
   "/backend/:sessionId",
   AuthMiddleware,
   GenerateBackend
+);
+
+Router.post(
+  "/frontend/:sessionId",
+  AuthMiddleware,
+  GenerateFrontend
 );
 
 module.exports = Router;
