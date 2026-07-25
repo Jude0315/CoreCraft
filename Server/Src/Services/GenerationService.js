@@ -2,6 +2,18 @@
 const path = require("path");
 
 const {
+  GenerateServerPackageJson,
+  GenerateClientPackageJson,
+  GenerateServerFile,
+  GenerateServerAppFile,
+  GenerateEnvironmentFile,
+  GenerateMainJsx,
+  GenerateAppJsx,
+  GenerateIndexHtml,
+} = require("../Generators/ProjectGenerator");
+
+
+const {
   GenerateFrontendFiles,
 } = require("../Generators/FrontendGenerator");
 
@@ -547,6 +559,146 @@ const CreateFrontendFiles = (
 
 /*-------------------------------------------------------------- */
 
+const CreateFullProject = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error("Project ID is required");
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const appName =
+    specification.appType || "Application";
+
+  const projectFolderName =
+    `${appName}-${projectId}`;
+
+  const projectRoot = path.join(
+    process.cwd(),
+    "..",
+    "Generated-Projects",
+    projectFolderName
+  );
+
+  const clientDirectory = path.join(
+    projectRoot,
+    "Client"
+  );
+
+  const clientSrcDirectory = path.join(
+    clientDirectory,
+    "src"
+  );
+
+  const serverDirectory = path.join(
+    projectRoot,
+    "Server"
+  );
+
+  const serverSrcDirectory = path.join(
+    serverDirectory,
+    "Src"
+  );
+
+  EnsureDirectoryExists(clientDirectory);
+  EnsureDirectoryExists(clientSrcDirectory);
+  EnsureDirectoryExists(serverDirectory);
+  EnsureDirectoryExists(serverSrcDirectory);
+
+  // Generate schemas
+  const schemaResult = CreateSchemaFiles(
+    projectId,
+    specification
+  );
+
+  // Generate backend controllers + routes
+  const backendResult = CreateBackendFiles(
+    projectId,
+    specification
+  );
+
+  // Generate frontend pages
+  const frontendResult = CreateFrontendFiles(
+    projectId,
+    specification
+  );
+
+  // Server package.json
+  WriteGeneratedFile(
+    serverDirectory,
+    "package.json",
+    GenerateServerPackageJson(appName)
+  );
+
+  // Server .env
+  WriteGeneratedFile(
+    serverDirectory,
+    ".env",
+    GenerateEnvironmentFile(appName)
+  );
+
+  // Server.js
+  WriteGeneratedFile(
+    serverSrcDirectory,
+    "Server.js",
+    GenerateServerFile()
+  );
+
+  // App.js
+  WriteGeneratedFile(
+    serverSrcDirectory,
+    "App.js",
+    GenerateServerAppFile(
+      specification.entities || []
+    )
+  );
+
+  // Client package.json
+  WriteGeneratedFile(
+    clientDirectory,
+    "package.json",
+    GenerateClientPackageJson(appName)
+  );
+
+  // Client index.html
+  WriteGeneratedFile(
+    clientDirectory,
+    "index.html",
+    GenerateIndexHtml(appName)
+  );
+
+  // Client main.jsx
+  WriteGeneratedFile(
+    clientSrcDirectory,
+    "main.jsx",
+    GenerateMainJsx()
+  );
+
+  // Client App.jsx
+  WriteGeneratedFile(
+    clientSrcDirectory,
+    "App.jsx",
+    GenerateAppJsx(
+      specification.pages || []
+    )
+  );
+
+  return {
+    projectFolderName,
+    projectRoot,
+    schemaResult,
+    backendResult,
+    frontendResult,
+  };
+};
+/*--------------------------------------------------------------- */
+
 module.exports = {
   GenerateSpecification,
   DetectEntities,
@@ -555,4 +707,5 @@ module.exports = {
   CreateSchemaFiles,
   CreateBackendFiles,
   CreateFrontendFiles,
+  CreateFullProject,
 };

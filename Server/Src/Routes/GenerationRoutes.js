@@ -5,6 +5,7 @@ const {
    GenerateSchemas,
     GenerateBackend,
     GenerateFrontend,
+     GenerateFullProject,
 } = require("../Controllers/GenerationController");
 
 const AuthMiddleware = require(
@@ -35,6 +36,12 @@ Router.post(
   "/frontend/:sessionId",
   AuthMiddleware,
   GenerateFrontend
+);
+
+Router.post(
+  "/project/:sessionId",
+  AuthMiddleware,
+  GenerateFullProject
 );
 
 module.exports = Router;
