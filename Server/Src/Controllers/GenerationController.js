@@ -322,6 +322,8 @@ const GenerateFullProject = async (
         result.backendResult.generatedRoutes,
       pages:
         result.frontendResult.generatedPages,
+      authentication:
+        result.authenticationResult,
     });
   } catch (error) {
     console.error(

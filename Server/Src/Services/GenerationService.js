@@ -2,6 +2,10 @@
 const path = require("path");
 
 const {
+  GenerateAuthFiles,
+} = require("../Generators/AuthGenerator");
+
+const {
   GenerateServerPackageJson,
   GenerateClientPackageJson,
   GenerateServerFile,
@@ -623,6 +627,12 @@ const CreateFullProject = (
     specification
   );
 
+  const authenticationResult =
+  CreateAuthenticationFiles(
+    projectId,
+    specification
+  );
+
   // Generate frontend pages
   const frontendResult = CreateFrontendFiles(
     projectId,
@@ -682,12 +692,13 @@ const CreateFullProject = (
 
   // Client App.jsx
   WriteGeneratedFile(
-    clientSrcDirectory,
-    "App.jsx",
-    GenerateAppJsx(
-      specification.pages || []
-    )
-  );
+  serverSrcDirectory,
+  "App.js",
+  GenerateServerAppFile(
+    specification.entities || [],
+    specification.features || []
+  )
+);
 
   return {
     projectFolderName,
@@ -695,9 +706,141 @@ const CreateFullProject = (
     schemaResult,
     backendResult,
     frontendResult,
+    authenticationResult,
   };
 };
+
 /*--------------------------------------------------------------- */
+const CreateAuthenticationFiles = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error(
+      "Project ID is required"
+    );
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const features =
+    specification.features || [];
+
+  const hasAuthentication =
+    features.some((feature) => {
+      const normalized =
+        feature.toLowerCase();
+
+      return (
+        normalized.includes("login") ||
+        normalized.includes("auth") ||
+        normalized.includes("register")
+      );
+    });
+
+  if (!hasAuthentication) {
+    return {
+      generated: false,
+      reason:
+        "Authentication feature was not requested",
+    };
+  }
+
+  const appName =
+  specification.appType ||
+  "Application";
+
+const projectFolderName =
+  `${appName}-${projectId}`;
+
+  const serverSrcDirectory =
+    path.join(
+      process.cwd(),
+      "..",
+      "Generated-Projects",
+      projectFolderName,
+      "Server",
+      "Src"
+    );
+
+  const controllersDirectory =
+    path.join(
+      serverSrcDirectory,
+      "Controllers"
+    );
+
+  const middlewareDirectory =
+    path.join(
+      serverSrcDirectory,
+      "Middleware"
+    );
+
+  const routesDirectory =
+    path.join(
+      serverSrcDirectory,
+      "Routes"
+    );
+
+  EnsureDirectoryExists(
+    controllersDirectory
+  );
+
+  EnsureDirectoryExists(
+    middlewareDirectory
+  );
+
+  EnsureDirectoryExists(
+    routesDirectory
+  );
+
+  const files =
+    GenerateAuthFiles();
+
+  const generatedFiles = [];
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      controllersDirectory,
+      files.controller.filename,
+      files.controller.content
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      middlewareDirectory,
+      files.authMiddleware.filename,
+      files.authMiddleware.content
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      middlewareDirectory,
+      files.roleMiddleware.filename,
+      files.roleMiddleware.content
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      routesDirectory,
+      files.routes.filename,
+      files.routes.content
+    )
+  );
+
+  return {
+    generated: true,
+    generatedFiles,
+  };
+};
+
+/*---------------------------------------------------------------- */
 
 module.exports = {
   GenerateSpecification,
@@ -708,4 +851,5 @@ module.exports = {
   CreateBackendFiles,
   CreateFrontendFiles,
   CreateFullProject,
+  CreateAuthenticationFiles,
 };

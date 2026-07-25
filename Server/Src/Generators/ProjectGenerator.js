@@ -65,7 +65,10 @@ app.listen(PORT, () => {
 `;
 };
 
-const GenerateServerAppFile = (entities = []) => {
+const GenerateServerAppFile = (
+  entities = [],
+  features = []
+) => {
   const routeImports = entities
     .map(
       (entity) =>
@@ -80,11 +83,32 @@ const GenerateServerAppFile = (entities = []) => {
     )
     .join("\n");
 
+  const normalizedFeatures = features.map(
+    (feature) => feature.toLowerCase()
+  );
+
+  const hasAuthentication =
+    normalizedFeatures.some(
+      (feature) =>
+        feature.includes("login") ||
+        feature.includes("auth") ||
+        feature.includes("register")
+    );
+
+  const authImport = hasAuthentication
+    ? `const AuthRoutes = require("./Routes/AuthRoutes");`
+    : "";
+
+  const authRegistration = hasAuthentication
+    ? `app.use("/api/auth", AuthRoutes);`
+    : "";
+
   return `const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 
 ${routeImports}
+${authImport}
 
 const app = express();
 
@@ -97,8 +121,13 @@ mongoose
     console.log("MongoDB connected");
   })
   .catch((error) => {
-    console.error("MongoDB connection error:", error.message);
+    console.error(
+      "MongoDB connection error:",
+      error.message
+    );
   });
+
+${authRegistration}
 
 ${routeRegistrations}
 
