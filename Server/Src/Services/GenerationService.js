@@ -1,6 +1,11 @@
 
 const path = require("path");
 
+
+const {
+  GenerateBackendFiles,
+} = require("../Generators/BackendGenerator");
+
 const {
   GenerateSchemaFiles,
 } = require("../Generators/SchemaGenerator");
@@ -389,10 +394,101 @@ const CreateSchemaFiles = (
   };
 };
 
+/*---------------------------------------------------------------- */
+const CreateBackendFiles = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error("Project ID is required");
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const backendFiles =
+    GenerateBackendFiles(specification);
+
+  const projectFolderName =
+    `${specification.appType || "Application"}-${projectId}`;
+
+  const projectServerDirectory = path.join(
+    process.cwd(),
+    "..",
+    "Generated-Projects",
+    projectFolderName,
+    "Server",
+    "Src"
+  );
+
+  const controllersDirectory = path.join(
+    projectServerDirectory,
+    "Controllers"
+  );
+
+  const routesDirectory = path.join(
+    projectServerDirectory,
+    "Routes"
+  );
+
+  EnsureDirectoryExists(controllersDirectory);
+  EnsureDirectoryExists(routesDirectory);
+
+  const generatedControllers =
+    backendFiles.controllerFiles.map(
+      (controllerFile) => {
+        const filePath =
+          WriteGeneratedFile(
+            controllersDirectory,
+            controllerFile.filename,
+            controllerFile.content
+          );
+
+        return {
+          entity: controllerFile.entity,
+          filename: controllerFile.filename,
+          filePath,
+        };
+      }
+    );
+
+  const generatedRoutes =
+    backendFiles.routeFiles.map(
+      (routeFile) => {
+        const filePath =
+          WriteGeneratedFile(
+            routesDirectory,
+            routeFile.filename,
+            routeFile.content
+          );
+
+        return {
+          entity: routeFile.entity,
+          filename: routeFile.filename,
+          filePath,
+        };
+      }
+    );
+
+  return {
+    projectFolderName,
+    controllersDirectory,
+    routesDirectory,
+    generatedControllers,
+    generatedRoutes,
+  };
+};
+
+/*------------------------------------------------------------- */
+
 module.exports = {
   GenerateSpecification,
   DetectEntities,
   DetectPages,
   DetectApiModules,
   CreateSchemaFiles,
+  CreateBackendFiles,
 };
