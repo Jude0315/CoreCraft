@@ -146,7 +146,41 @@ module.exports = {
 };
 
 const GenerateRoute = (entity) => {
-  const routeName = entity.toLowerCase();
+  const isProtectedEntity = entity !== "User";
+
+  const instructorManagedEntities = [
+    "Course",
+    "Lesson",
+    "Quiz",
+    "Assignment",
+    "Progress",
+    "Student",
+    "Instructor",
+  ];
+
+  const requiresInstructorRole =
+    instructorManagedEntities.includes(entity);
+
+  const middlewareImports = isProtectedEntity
+    ? `const AuthMiddleware = require("../Middleware/AuthMiddleware");
+const AllowRoles = require("../Middleware/RoleMiddleware");`
+    : "";
+
+  const createMiddleware = requiresInstructorRole
+    ? `AuthMiddleware, AllowRoles("instructor", "admin"), `
+    : "";
+
+  const readMiddleware = isProtectedEntity
+    ? `AuthMiddleware, `
+    : "";
+
+  const updateMiddleware = requiresInstructorRole
+    ? `AuthMiddleware, AllowRoles("instructor", "admin"), `
+    : "";
+
+  const deleteMiddleware = requiresInstructorRole
+    ? `AuthMiddleware, AllowRoles("admin"), `
+    : "";
 
   return `const express = require("express");
 
@@ -158,17 +192,19 @@ const {
   Delete${entity},
 } = require("../Controllers/${entity}Controller");
 
+${middlewareImports}
+
 const Router = express.Router();
 
-Router.post("/", Create${entity});
+Router.post("/", ${createMiddleware}Create${entity});
 
-Router.get("/", GetAll${entity}s);
+Router.get("/", ${readMiddleware}GetAll${entity}s);
 
-Router.get("/:id", Get${entity}ById);
+Router.get("/:id", ${readMiddleware}Get${entity}ById);
 
-Router.put("/:id", Update${entity});
+Router.put("/:id", ${updateMiddleware}Update${entity});
 
-Router.delete("/:id", Delete${entity});
+Router.delete("/:id", ${deleteMiddleware}Delete${entity});
 
 module.exports = Router;
 `;
