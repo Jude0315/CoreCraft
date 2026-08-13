@@ -11,6 +11,7 @@ const {
   GenerateServerFile,
   GenerateServerAppFile,
   GenerateEnvironmentFile,
+   GenerateClientEnvironmentFile,
   GenerateMainJsx,
   GenerateAppJsx,
   GenerateIndexHtml,
@@ -33,6 +34,21 @@ const {
   EnsureDirectoryExists,
   WriteGeneratedFile,
 } = require("../Utils/FileWriter");
+
+/*---------------------------------- */
+
+const {
+  GenerateApiService,
+  GenerateAuthContext,
+  GenerateProtectedRoute,
+  GenerateThemeCss,
+  GenerateLoginPage,
+  GenerateRegisterPage,
+  GenerateNavbar,
+} = require("../Generators/FrontendAuthGenerator");
+
+
+/*------------------------------------ */
 
 const GenerateSpecification = (session) => {
     
@@ -633,8 +649,16 @@ const CreateFullProject = (
     specification
   );
 
-  // Generate frontend pages
-  const frontendResult = CreateFrontendFiles(
+// Generate standard frontend pages first
+const frontendResult = CreateFrontendFiles(
+  projectId,
+  specification
+);
+
+// Generate authentication frontend after
+// so Login/Register pages replace generic placeholders
+const frontendAuthResult =
+  CreateFrontendAuthFiles(
     projectId,
     specification
   );
@@ -654,48 +678,56 @@ const CreateFullProject = (
   );
 
   // Server.js
-  WriteGeneratedFile(
-    serverSrcDirectory,
-    "Server.js",
-    GenerateServerFile()
-  );
+WriteGeneratedFile(
+  serverSrcDirectory,
+  "Server.js",
+  GenerateServerFile()
+);
 
-  // App.js
-  WriteGeneratedFile(
-    serverSrcDirectory,
-    "App.js",
-    GenerateServerAppFile(
-      specification.entities || []
-    )
-  );
-
-  // Client package.json
-  WriteGeneratedFile(
-    clientDirectory,
-    "package.json",
-    GenerateClientPackageJson(appName)
-  );
-
-  // Client index.html
-  WriteGeneratedFile(
-    clientDirectory,
-    "index.html",
-    GenerateIndexHtml(appName)
-  );
-
-  // Client main.jsx
-  WriteGeneratedFile(
-    clientSrcDirectory,
-    "main.jsx",
-    GenerateMainJsx()
-  );
-
-  // Client App.jsx
-  WriteGeneratedFile(
+// Server App.js
+WriteGeneratedFile(
   serverSrcDirectory,
   "App.js",
   GenerateServerAppFile(
     specification.entities || [],
+    specification.features || []
+  )
+);
+
+// Client package.json
+WriteGeneratedFile(
+  clientDirectory,
+  "package.json",
+  GenerateClientPackageJson(appName)
+);
+
+// Client .env
+WriteGeneratedFile(
+  clientDirectory,
+  ".env",
+  GenerateClientEnvironmentFile()
+);
+
+// Client index.html
+WriteGeneratedFile(
+  clientDirectory,
+  "index.html",
+  GenerateIndexHtml(appName)
+);
+
+// Client main.jsx
+WriteGeneratedFile(
+  clientSrcDirectory,
+  "main.jsx",
+  GenerateMainJsx()
+);
+
+// Client App.jsx
+WriteGeneratedFile(
+  clientSrcDirectory,
+  "App.jsx",
+  GenerateAppJsx(
+    specification.pages || [],
     specification.features || []
   )
 );
@@ -707,6 +739,7 @@ const CreateFullProject = (
     backendResult,
     frontendResult,
     authenticationResult,
+    frontendAuthResult,
   };
 };
 
@@ -840,6 +873,179 @@ const projectFolderName =
   };
 };
 
+
+const CreateFrontendAuthFiles = (
+  projectId,
+  specification
+) => {
+  if (!projectId) {
+    throw new Error("Project ID is required");
+  }
+
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const features =
+    specification.features || [];
+
+  const hasAuthentication =
+    features.some((feature) => {
+      const normalized =
+        feature.toLowerCase();
+
+      return (
+        normalized.includes("login") ||
+        normalized.includes("auth") ||
+        normalized.includes("register")
+      );
+    });
+
+  if (!hasAuthentication) {
+    return {
+      generated: false,
+      reason:
+        "Authentication feature was not requested",
+    };
+  }
+
+  const appName =
+    specification.appType ||
+    "Application";
+
+  const projectFolderName =
+    `${appName}-${projectId}`;
+
+  const clientSrcDirectory = path.join(
+    process.cwd(),
+    "..",
+    "Generated-Projects",
+    projectFolderName,
+    "Client",
+    "src"
+  );
+
+  const contextDirectory = path.join(
+    clientSrcDirectory,
+    "Context"
+  );
+
+  const routesDirectory = path.join(
+    clientSrcDirectory,
+    "Routes"
+  );
+
+  const servicesDirectory = path.join(
+    clientSrcDirectory,
+    "Services"
+  );
+
+  const stylesDirectory = path.join(
+    clientSrcDirectory,
+    "Styles"
+  );
+
+  const pagesDirectory = path.join(
+    clientSrcDirectory,
+    "Pages"
+  );
+
+  const componentsDirectory = path.join(
+  clientSrcDirectory,
+  "Components"
+);
+
+  EnsureDirectoryExists(
+    contextDirectory
+  );
+
+  EnsureDirectoryExists(
+    routesDirectory
+  );
+
+  EnsureDirectoryExists(
+    servicesDirectory
+  );
+
+  EnsureDirectoryExists(
+    stylesDirectory
+  );
+
+  EnsureDirectoryExists(
+    pagesDirectory
+  );
+
+
+  EnsureDirectoryExists(
+  componentsDirectory
+);
+
+  const generatedFiles = [];
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      servicesDirectory,
+      "Api.js",
+      GenerateApiService()
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      contextDirectory,
+      "AuthContext.jsx",
+      GenerateAuthContext()
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      routesDirectory,
+      "ProtectedRoute.jsx",
+      GenerateProtectedRoute()
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      stylesDirectory,
+      "theme.css",
+      GenerateThemeCss(appName)
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      pagesDirectory,
+      "LoginPage.jsx",
+      GenerateLoginPage(appName)
+    )
+  );
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      pagesDirectory,
+      "RegisterPage.jsx",
+      GenerateRegisterPage(appName)
+    )
+  );
+
+  generatedFiles.push(
+  WriteGeneratedFile(
+    componentsDirectory,
+    "Navbar.jsx",
+    GenerateNavbar(appName)
+  )
+);
+
+  return {
+    generated: true,
+    generatedFiles,
+  };
+};
+
 /*---------------------------------------------------------------- */
 
 module.exports = {
@@ -852,4 +1058,5 @@ module.exports = {
   CreateFrontendFiles,
   CreateFullProject,
   CreateAuthenticationFiles,
+   CreateFrontendAuthFiles,
 };

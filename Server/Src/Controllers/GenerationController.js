@@ -324,6 +324,8 @@ const GenerateFullProject = async (
         result.frontendResult.generatedPages,
       authentication:
         result.authenticationResult,
+      frontendAuthentication:
+        result.frontendAuthResult,
     });
   } catch (error) {
     console.error(

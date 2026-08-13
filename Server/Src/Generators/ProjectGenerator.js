@@ -142,9 +142,14 @@ module.exports = app;
 };
 
 const GenerateEnvironmentFile = (appName) => {
-  return `PORT=5000
+  return `PORT=5001
 MONGO_URI=mongodb://127.0.0.1:27017/${appName}DB
 JWT_SECRET=change_this_secret
+`;
+};
+
+const GenerateClientEnvironmentFile = () => {
+  return `VITE_API_URL=http://localhost:5001/api
 `;
 };
 
@@ -154,42 +159,168 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
+import { AuthProvider } from "./Context/AuthContext";
+
+import "./Styles/theme.css";
 
 ReactDOM.createRoot(
   document.getElementById("root")
 ).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
 `;
 };
 
-const GenerateAppJsx = (pages = []) => {
-  const pageImports = pages
-    .map((page) => {
-      const componentName = NormalizeComponentName(page);
+const GenerateAppJsx = (
+  pages = [],
+  features = []
+) => {
+  const normalizedPages =
+    pages.map((page) => ({
+      page,
+      componentName:
+        NormalizeComponentName(page),
+      route:
+        CreateRoutePath(page),
+    }));
 
-      return `import ${componentName} from "./Pages/${componentName}";`;
-    })
-    .join("\n");
+  const pageImports =
+    normalizedPages
+      .map(
+        ({ componentName }) =>
+          `import ${componentName} from "./Pages/${componentName}";`
+      )
+      .join("\n");
 
-  const routeDefinitions = pages
-    .map((page, index) => {
-      const componentName = NormalizeComponentName(page);
+  const hasAuthentication =
+    features.some((feature) => {
+      const normalized =
+        feature.toLowerCase();
 
-      const route =
-        index === 0
-          ? "/"
-          : `/${CreateRoutePath(page)}`;
+      return (
+        normalized.includes("login") ||
+        normalized.includes("auth") ||
+        normalized.includes("register")
+      );
+    });
 
-      return `        <Route path="${route}" element={<${componentName} />} />`;
-    })
-    .join("\n");
+  const protectedRouteImport =
+    hasAuthentication
+      ? `import ProtectedRoute from "./Routes/ProtectedRoute";`
+      : "";
+
+  const navbarImport =
+    hasAuthentication
+      ? `import Navbar from "./Components/Navbar";`
+      : "";
+
+  const hasRegisterPage =
+    normalizedPages.some(
+      ({ componentName }) =>
+        componentName === "RegisterPage"
+    );
+
+  const extraRegisterImport =
+    hasAuthentication &&
+    !hasRegisterPage
+      ? `import RegisterPage from "./Pages/RegisterPage";`
+      : "";
+
+  const routeDefinitions =
+    normalizedPages
+      .map(
+        ({
+          page,
+          componentName,
+          route,
+        }) => {
+          const pageName =
+            page.toLowerCase();
+
+          const path =
+            pageName === "home page"
+              ? "/"
+              : `/${route}`;
+
+          const isLogin =
+            componentName ===
+            "LoginPage";
+
+          const isRegister =
+            componentName ===
+            "RegisterPage";
+
+          const isInstructorPortal =
+            componentName ===
+            "InstructorPortal";
+
+          if (
+            !hasAuthentication ||
+            isLogin ||
+            isRegister
+          ) {
+            return `        <Route path="${path}" element={<${componentName} />} />`;
+          }
+
+          if (
+            pageName === "home page"
+          ) {
+            return `        <Route
+          path="${path}"
+          element={
+            <>
+              <Navbar />
+              <${componentName} />
+            </>
+          }
+        />`;
+          }
+
+          if (
+            isInstructorPortal
+          ) {
+            return `        <Route
+          path="${path}"
+          element={
+            <ProtectedRoute roles={["instructor", "admin"]}>
+              <>
+                <Navbar />
+                <${componentName} />
+              </>
+            </ProtectedRoute>
+          }
+        />`;
+          }
+
+          return `        <Route
+          path="${path}"
+          element={
+            <ProtectedRoute>
+              <>
+                <Navbar />
+                <${componentName} />
+              </>
+            </ProtectedRoute>
+          }
+        />`;
+        }
+      )
+      .join("\n");
+
+  const registerRoute =
+    hasAuthentication &&
+    !hasRegisterPage
+      ? `        <Route path="/register" element={<RegisterPage />} />`
+      : "";
 
   return `import React from "react";
+
 import {
   Routes,
   Route,
@@ -197,10 +328,16 @@ import {
 
 ${pageImports}
 
+${protectedRouteImport}
+${navbarImport}
+${extraRegisterImport}
+
 const App = () => {
   return (
     <Routes>
 ${routeDefinitions}
+
+${registerRoute}
     </Routes>
   );
 };
@@ -261,6 +398,7 @@ module.exports = {
   GenerateServerFile,
   GenerateServerAppFile,
   GenerateEnvironmentFile,
+  GenerateClientEnvironmentFile,
   GenerateMainJsx,
   GenerateAppJsx,
   GenerateIndexHtml,
