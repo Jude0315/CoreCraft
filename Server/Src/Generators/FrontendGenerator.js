@@ -1,3 +1,4 @@
+
 const GenerateFrontendFiles = (specification) => {
   if (!specification) {
     throw new Error(
@@ -204,12 +205,121 @@ export default HomePage;
 `;
   }
 
-  if (componentName === "Dashboard") {
-    return `import React from "react";
+if (componentName === "Dashboard") {
+  return `import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  ProgressApi,
+} from "../Services/Api";
+
 import { useAuth } from "../Context/AuthContext";
 
 const Dashboard = () => {
   const { user } = useAuth();
+
+  const [progressRecords, setProgressRecords] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    const LoadProgress = async () => {
+      try {
+        const userId =
+          user?.id || user?._id;
+
+        if (!userId) {
+          setProgressRecords([]);
+          setLoading(false);
+          return;
+        }
+
+        const response =
+          await ProgressApi.getMine();
+
+        const records =
+          response.data.data || [];
+
+        const ownRecords =
+          records.filter((record) => {
+            const studentId =
+              record.student?._id ||
+              record.student;
+
+            return (
+              String(studentId) ===
+              String(userId)
+            );
+          });
+
+        setProgressRecords(
+          ownRecords
+        );
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load progress"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      LoadProgress();
+    }
+  }, [user]);
+
+  const averageProgress =
+    progressRecords.length > 0
+      ? Math.round(
+          progressRecords.reduce(
+            (total, record) =>
+              total +
+              Number(
+                record.progressPercentage ||
+                0
+              ),
+            0
+          ) /
+            progressRecords.length
+        )
+      : 0;
+
+  const completedCourses =
+    progressRecords.filter(
+      (record) =>
+        Number(
+          record.progressPercentage
+        ) >= 100
+    ).length;
+
+  const inProgressCourses =
+    progressRecords.filter(
+      (record) =>
+        Number(
+          record.progressPercentage
+        ) > 0 &&
+        Number(
+          record.progressPercentage
+        ) < 100
+    ).length;
+
+  const GetCourseName = (course) => {
+    return (
+      course?.title ||
+      course?._id ||
+      course ||
+      "Course unavailable"
+    );
+  };
 
   return (
     <main className="page-shell">
@@ -232,25 +342,47 @@ const Dashboard = () => {
         </div>
       </section>
 
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
+
       <section className="stats-grid">
         <article className="stat-card">
-          <span>Active Courses</span>
-          <strong>4</strong>
+          <span>Courses Tracked</span>
+          <strong>
+            {loading
+              ? "..."
+              : progressRecords.length}
+          </strong>
         </article>
 
         <article className="stat-card">
-          <span>Assignments</span>
-          <strong>3</strong>
+          <span>Completed Courses</span>
+          <strong>
+            {loading
+              ? "..."
+              : completedCourses}
+          </strong>
         </article>
 
         <article className="stat-card">
           <span>Average Progress</span>
-          <strong>72%</strong>
+          <strong>
+            {loading
+              ? "..."
+              : \`\${averageProgress}%\`}
+          </strong>
         </article>
 
         <article className="stat-card">
-          <span>Completed Quizzes</span>
-          <strong>8</strong>
+          <span>In Progress</span>
+          <strong>
+            {loading
+              ? "..."
+              : inProgressCourses}
+          </strong>
         </article>
       </section>
 
@@ -260,35 +392,45 @@ const Dashboard = () => {
             <h2>Continue Learning</h2>
           </div>
 
-          <div className="course-list">
-            <div className="course-row">
-              <div>
-                <strong>
-                  Introduction to Programming
-                </strong>
+          {loading ? (
+            <p>
+              Loading progress...
+            </p>
+          ) : progressRecords.length === 0 ? (
+            <p>
+              No progress records have
+              been added for your account yet.
+            </p>
+          ) : (
+            <div className="course-list">
+              {progressRecords.map(
+                (record) => (
+                  <div
+                    className="course-row"
+                    key={record._id}
+                  >
+                    <div>
+                      <strong>
+                        {GetCourseName(
+                          record.course
+                        )}
+                      </strong>
 
-                <span>
-                  8 of 12 lessons
-                </span>
-              </div>
+                      <span>
+                        Course progress
+                      </span>
+                    </div>
 
-              <strong>67%</strong>
+                    <strong>
+                      {
+                        record.progressPercentage
+                      }%
+                    </strong>
+                  </div>
+                )
+              )}
             </div>
-
-            <div className="course-row">
-              <div>
-                <strong>
-                  Web Development Fundamentals
-                </strong>
-
-                <span>
-                  5 of 8 lessons
-                </span>
-              </div>
-
-              <strong>63%</strong>
-            </div>
-          </div>
+          )}
         </article>
 
         <article className="content-card">
@@ -473,6 +615,10 @@ if (componentName === "InstructorPortal") {
 
 import {
   CourseApi,
+  LessonApi,
+  QuizApi,
+  AssignmentApi,
+  ProgressApi,
 } from "../Services/Api";
 
 import {
@@ -494,6 +640,66 @@ const InstructorPortal = () => {
 
   const [editingCourseId, setEditingCourseId] =
     useState(null);
+
+  const [lessons, setLessons] =
+    useState([]);
+
+  const [lessonForm, setLessonForm] =
+    useState({
+      course: "",
+      title: "",
+      content: "",
+      videoUrl: "",
+      order: 0,
+    });
+
+  const [editingLessonId, setEditingLessonId] =
+    useState(null);
+
+  const [quizzes, setQuizzes] =
+    useState([]);
+
+  const [quizForm, setQuizForm] =
+    useState({
+      course: "",
+      title: "",
+      passingScore: 50,
+    });
+
+  const [editingQuizId, setEditingQuizId] =
+    useState(null);
+
+  const [assignments, setAssignments] =
+    useState([]);
+
+  const [assignmentForm, setAssignmentForm] =
+    useState({
+      course: "",
+      title: "",
+      description: "",
+      dueDate: "",
+      maximumMarks: 100,
+    });
+
+  const [
+    editingAssignmentId,
+    setEditingAssignmentId,
+  ] = useState(null);
+
+  const [progressRecords, setProgressRecords] =
+    useState([]);
+
+  const [progressForm, setProgressForm] =
+    useState({
+      student: "",
+      course: "",
+      progressPercentage: 0,
+    });
+
+  const [
+    editingProgressId,
+    setEditingProgressId,
+  ] = useState(null);
 
   const [loading, setLoading] =
     useState(true);
@@ -525,8 +731,76 @@ const InstructorPortal = () => {
     }
   };
 
+  const LoadLessons = async () => {
+    try {
+      const response =
+        await LessonApi.getAll();
+
+      setLessons(
+        response.data.data || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load lessons"
+      );
+    }
+  };
+
+  const LoadQuizzes = async () => {
+    try {
+      const response =
+        await QuizApi.getAll();
+
+      setQuizzes(
+        response.data.data || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load quizzes"
+      );
+    }
+  };
+
+  const LoadAssignments = async () => {
+    try {
+      const response =
+        await AssignmentApi.getAll();
+
+      setAssignments(
+        response.data.data || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load assignments"
+      );
+    }
+  };
+
+  const LoadProgress = async () => {
+    try {
+      const response =
+        await ProgressApi.getAll();
+
+      setProgressRecords(
+        response.data.data || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load progress records"
+      );
+    }
+  };
+
   useEffect(() => {
     LoadCourses();
+    LoadLessons();
+    LoadQuizzes();
+    LoadAssignments();
+    LoadProgress();
   }, []);
 
   const HandleChange = (event) => {
@@ -554,6 +828,58 @@ const InstructorPortal = () => {
     });
 
     setEditingCourseId(null);
+  };
+
+  const HandleLessonChange = (event) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setLessonForm({
+      ...lessonForm,
+      [name]: value,
+    });
+  };
+
+  const HandleQuizChange = (event) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setQuizForm({
+      ...quizForm,
+      [name]: value,
+    });
+  };
+
+  const HandleAssignmentChange = (
+    event
+  ) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setAssignmentForm({
+      ...assignmentForm,
+      [name]: value,
+    });
+  };
+
+  const HandleProgressChange = (
+    event
+  ) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setProgressForm({
+      ...progressForm,
+      [name]: value,
+    });
   };
 
   const HandleSubmit = async (event) => {
@@ -649,6 +975,454 @@ const InstructorPortal = () => {
         );
       }
     };
+
+  const HandleLessonSubmit = async (event) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const payload = {
+        course: lessonForm.course,
+        title: lessonForm.title,
+        content: lessonForm.content,
+        videoUrl: lessonForm.videoUrl,
+        order: Number(
+          lessonForm.order
+        ),
+      };
+
+      if (editingLessonId) {
+        await LessonApi.update(
+          editingLessonId,
+          payload
+        );
+
+        setSuccess(
+          "Lesson updated successfully"
+        );
+      } else {
+        await LessonApi.create(
+          payload
+        );
+
+        setSuccess(
+          "Lesson created successfully"
+        );
+      }
+
+      setLessonForm({
+        course: "",
+        title: "",
+        content: "",
+        videoUrl: "",
+        order: 0,
+      });
+
+      setEditingLessonId(null);
+
+      await LoadLessons();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save lesson"
+      );
+    }
+  };
+
+  const HandleLessonEdit = (lesson) => {
+    setEditingLessonId(
+      lesson._id
+    );
+
+    setLessonForm({
+      course:
+        lesson.course?._id ||
+        lesson.course ||
+        "",
+      title:
+        lesson.title || "",
+      content:
+        lesson.content || "",
+      videoUrl:
+        lesson.videoUrl || "",
+      order:
+        lesson.order || 0,
+    });
+
+    setSuccess("");
+    setError("");
+  };
+
+  const HandleLessonDelete = async (
+    lessonId
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Delete this lesson?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await LessonApi.remove(
+        lessonId
+      );
+
+      setSuccess(
+        "Lesson deleted successfully"
+      );
+
+      await LoadLessons();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to delete lesson"
+      );
+    }
+  };
+
+  const HandleQuizSubmit = async (event) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const payload = {
+        course: quizForm.course,
+        title: quizForm.title,
+        passingScore: Number(
+          quizForm.passingScore
+        ),
+        questions: [],
+      };
+
+      if (editingQuizId) {
+        await QuizApi.update(
+          editingQuizId,
+          payload
+        );
+
+        setSuccess(
+          "Quiz updated successfully"
+        );
+      } else {
+        await QuizApi.create(
+          payload
+        );
+
+        setSuccess(
+          "Quiz created successfully"
+        );
+      }
+
+      setQuizForm({
+        course: "",
+        title: "",
+        passingScore: 50,
+      });
+
+      setEditingQuizId(null);
+
+      await LoadQuizzes();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save quiz"
+      );
+    }
+  };
+
+  const HandleQuizEdit = (quiz) => {
+    setEditingQuizId(
+      quiz._id
+    );
+
+    setQuizForm({
+      course:
+        quiz.course?._id ||
+        quiz.course ||
+        "",
+      title:
+        quiz.title || "",
+      passingScore:
+        quiz.passingScore || 50,
+    });
+
+    setSuccess("");
+    setError("");
+  };
+
+  const HandleQuizDelete = async (
+    quizId
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Delete this quiz?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await QuizApi.remove(
+        quizId
+      );
+
+      setSuccess(
+        "Quiz deleted successfully"
+      );
+
+      await LoadQuizzes();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to delete quiz"
+      );
+    }
+  };
+
+  const HandleAssignmentSubmit = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const payload = {
+        course:
+          assignmentForm.course,
+        title:
+          assignmentForm.title,
+        description:
+          assignmentForm.description,
+        dueDate:
+          assignmentForm.dueDate ||
+          undefined,
+        maximumMarks:
+          Number(
+            assignmentForm.maximumMarks
+          ),
+      };
+
+      if (editingAssignmentId) {
+        await AssignmentApi.update(
+          editingAssignmentId,
+          payload
+        );
+
+        setSuccess(
+          "Assignment updated successfully"
+        );
+      } else {
+        await AssignmentApi.create(
+          payload
+        );
+
+        setSuccess(
+          "Assignment created successfully"
+        );
+      }
+
+      setAssignmentForm({
+        course: "",
+        title: "",
+        description: "",
+        dueDate: "",
+        maximumMarks: 100,
+      });
+
+      setEditingAssignmentId(null);
+
+      await LoadAssignments();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save assignment"
+      );
+    }
+  };
+
+  const HandleAssignmentEdit = (
+    assignment
+  ) => {
+    setEditingAssignmentId(
+      assignment._id
+    );
+
+    setAssignmentForm({
+      course:
+        assignment.course?._id ||
+        assignment.course ||
+        "",
+      title:
+        assignment.title || "",
+      description:
+        assignment.description || "",
+      dueDate:
+        assignment.dueDate
+          ? assignment.dueDate.slice(
+              0,
+              10
+            )
+          : "",
+      maximumMarks:
+        assignment.maximumMarks ||
+        100,
+    });
+
+    setError("");
+    setSuccess("");
+  };
+
+  const HandleAssignmentDelete = async (
+    assignmentId
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Delete this assignment?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await AssignmentApi.remove(
+        assignmentId
+      );
+
+      setSuccess(
+        "Assignment deleted successfully"
+      );
+
+      await LoadAssignments();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to delete assignment"
+      );
+    }
+  };
+
+  const HandleProgressSubmit = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const payload = {
+        student:
+          progressForm.student,
+        course:
+          progressForm.course,
+        progressPercentage:
+          Number(
+            progressForm.progressPercentage
+          ),
+        lastAccessedAt:
+          new Date(),
+      };
+
+      if (editingProgressId) {
+        await ProgressApi.update(
+          editingProgressId,
+          payload
+        );
+
+        setSuccess(
+          "Progress updated successfully"
+        );
+      } else {
+        await ProgressApi.create(
+          payload
+        );
+
+        setSuccess(
+          "Progress created successfully"
+        );
+      }
+
+      setProgressForm({
+        student: "",
+        course: "",
+        progressPercentage: 0,
+      });
+
+      setEditingProgressId(null);
+
+      await LoadProgress();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save progress"
+      );
+    }
+  };
+
+  const HandleProgressEdit = (
+    progress
+  ) => {
+    setEditingProgressId(
+      progress._id
+    );
+
+    setProgressForm({
+      student:
+        progress.student?._id ||
+        progress.student ||
+        "",
+      course:
+        progress.course?._id ||
+        progress.course ||
+        "",
+      progressPercentage:
+        progress.progressPercentage || 0,
+    });
+
+    setError("");
+    setSuccess("");
+  };
+
+  const HandleProgressDelete = async (
+    progressId
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Delete this progress record?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await ProgressApi.remove(
+        progressId
+      );
+
+      setSuccess(
+        "Progress deleted successfully"
+      );
+
+      await LoadProgress();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to delete progress"
+      );
+    }
+  };
 
   const HandleDelete =
     async (courseId) => {
@@ -886,6 +1660,688 @@ const InstructorPortal = () => {
             </div>
           )}
         </article>
+      </section>
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>
+            {editingLessonId
+              ? "Edit Lesson"
+              : "Create Lesson"}
+          </h2>
+        </div>
+
+
+        <form
+          className="course-form"
+          onSubmit={HandleLessonSubmit}
+        >
+          <div className="form-group">
+            <label>Course</label>
+
+
+            <select
+              name="course"
+              value={lessonForm.course}
+              onChange={HandleLessonChange}
+              required
+            >
+              <option value="">
+                Select a course
+              </option>
+
+
+              {courses.map((course) => (
+                <option
+                  key={course._id}
+                  value={course._id}
+                >
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+
+          <div className="form-group">
+            <label>Lesson title</label>
+
+
+            <input
+              name="title"
+              value={lessonForm.title}
+              onChange={HandleLessonChange}
+              required
+            />
+          </div>
+
+
+          <div className="form-group">
+            <label>Content</label>
+
+
+            <textarea
+              name="content"
+              value={lessonForm.content}
+              onChange={HandleLessonChange}
+              rows="5"
+            />
+          </div>
+
+
+          <div className="form-group">
+            <label>Video URL</label>
+
+
+            <input
+              name="videoUrl"
+              value={lessonForm.videoUrl}
+              onChange={HandleLessonChange}
+            />
+          </div>
+
+
+          <div className="form-group">
+            <label>Order</label>
+
+
+            <input
+              type="number"
+              name="order"
+              value={lessonForm.order}
+              onChange={HandleLessonChange}
+              min="0"
+            />
+          </div>
+
+
+          <div className="form-action-row">
+            <button className="primary-button action-button">
+              {editingLessonId
+                ? "Update Lesson"
+                : "Create Lesson"}
+            </button>
+
+
+            {editingLessonId && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setEditingLessonId(null);
+                  setLessonForm({
+                    course: "",
+                    title: "",
+                    content: "",
+                    videoUrl: "",
+                    order: 0,
+                  });
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>Lessons</h2>
+        </div>
+
+
+        {lessons.length === 0 ? (
+          <p>
+            No lessons have been created yet.
+          </p>
+        ) : (
+          <div className="instructor-course-list">
+            {lessons.map((lesson) => (
+              <div
+                className="instructor-course-row"
+                key={lesson._id}
+              >
+                <div>
+                  <strong>
+                    {lesson.title}
+                  </strong>
+
+
+                  <span>
+                    Order: {lesson.order}
+                  </span>
+                </div>
+
+
+                <div className="row-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() =>
+                      HandleLessonEdit(
+                        lesson
+                      )
+                    }
+                  >
+                    Edit
+                  </button>
+
+
+                  {user?.role === "admin" && (
+                    <button
+                      className="danger-button"
+                      onClick={() =>
+                        HandleLessonDelete(
+                          lesson._id
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>
+            {editingQuizId
+              ? "Edit Quiz"
+              : "Create Quiz"}
+          </h2>
+        </div>
+
+        <form
+          className="course-form"
+          onSubmit={HandleQuizSubmit}
+        >
+          <div className="form-group">
+            <label>Course</label>
+
+            <select
+              name="course"
+              value={quizForm.course}
+              onChange={HandleQuizChange}
+              required
+            >
+              <option value="">
+                Select a course
+              </option>
+
+              {courses.map((course) => (
+                <option
+                  key={course._id}
+                  value={course._id}
+                >
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Quiz title</label>
+
+            <input
+              name="title"
+              value={quizForm.title}
+              onChange={HandleQuizChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Passing score</label>
+
+            <input
+              type="number"
+              name="passingScore"
+              value={quizForm.passingScore}
+              onChange={HandleQuizChange}
+              min="0"
+              max="100"
+            />
+          </div>
+
+          <div className="form-action-row">
+            <button
+              className="primary-button action-button"
+              type="submit"
+            >
+              {editingQuizId
+                ? "Update Quiz"
+                : "Create Quiz"}
+            </button>
+
+
+            {editingQuizId && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setEditingQuizId(null);
+
+
+                  setQuizForm({
+                    course: "",
+                    title: "",
+                    passingScore: 50,
+                  });
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>Quizzes</h2>
+        </div>
+
+
+        {quizzes.length === 0 ? (
+          <p>
+            No quizzes have been created yet.
+          </p>
+        ) : (
+          <div className="instructor-course-list">
+            {quizzes.map((quiz) => (
+              <div
+                className="instructor-course-row"
+                key={quiz._id}
+              >
+                <div>
+                  <strong>
+                    {quiz.title}
+                  </strong>
+
+
+                  <span>
+                    Passing score:{" "}
+                    {quiz.passingScore}%
+                  </span>
+                </div>
+
+
+                <div className="row-actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() =>
+                      HandleQuizEdit(
+                        quiz
+                      )
+                    }
+                  >
+                    Edit
+                  </button>
+
+
+                  {user?.role === "admin" && (
+                    <button
+                      className="danger-button"
+                      onClick={() =>
+                        HandleQuizDelete(
+                          quiz._id
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>
+            {editingAssignmentId
+              ? "Edit Assignment"
+              : "Create Assignment"}
+          </h2>
+        </div>
+
+        <form
+          className="course-form"
+          onSubmit={HandleAssignmentSubmit}
+        >
+          <div className="form-group">
+            <label>Course</label>
+
+            <select
+              name="course"
+              value={assignmentForm.course}
+              onChange={HandleAssignmentChange}
+              required
+            >
+              <option value="">
+                Select a course
+              </option>
+
+              {courses.map((course) => (
+                <option
+                  key={course._id}
+                  value={course._id}
+                >
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Assignment title</label>
+
+            <input
+              name="title"
+              value={assignmentForm.title}
+              onChange={HandleAssignmentChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Description</label>
+
+            <textarea
+              name="description"
+              value={assignmentForm.description}
+              onChange={HandleAssignmentChange}
+              rows="5"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Due date</label>
+
+            <input
+              type="date"
+              name="dueDate"
+              value={assignmentForm.dueDate}
+              onChange={HandleAssignmentChange}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Maximum marks</label>
+
+            <input
+              type="number"
+              name="maximumMarks"
+              value={assignmentForm.maximumMarks}
+              onChange={HandleAssignmentChange}
+              min="0"
+            />
+          </div>
+
+          <div className="form-action-row">
+            <button
+              className="primary-button action-button"
+              type="submit"
+            >
+              {editingAssignmentId
+                ? "Update Assignment"
+                : "Create Assignment"}
+            </button>
+
+            {editingAssignmentId && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setEditingAssignmentId(null);
+
+                  setAssignmentForm({
+                    course: "",
+                    title: "",
+                    description: "",
+                    dueDate: "",
+                    maximumMarks: 100,
+                  });
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>Assignments</h2>
+        </div>
+
+
+        {assignments.length === 0 ? (
+          <p>
+            No assignments have been created yet.
+          </p>
+        ) : (
+          <div className="instructor-course-list">
+            {assignments.map(
+              (assignment) => (
+                <div
+                  className="instructor-course-row"
+                  key={assignment._id}
+                >
+                  <div>
+                    <strong>
+                      {assignment.title}
+                    </strong>
+
+
+                    <span>
+                      Max marks:{" "}
+                      {assignment.maximumMarks}
+                    </span>
+                  </div>
+
+
+                  <div className="row-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() =>
+                        HandleAssignmentEdit(
+                          assignment
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
+
+
+                    {user?.role === "admin" && (
+                      <button
+                        className="danger-button"
+                        onClick={() =>
+                          HandleAssignmentDelete(
+                            assignment._id
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>
+            {editingProgressId
+              ? "Edit Progress"
+              : "Create Progress"}
+          </h2>
+        </div>
+
+        <form
+          className="course-form"
+          onSubmit={HandleProgressSubmit}
+        >
+          <div className="form-group">
+            <label>Student ID</label>
+
+            <input
+              name="student"
+              value={progressForm.student}
+              onChange={HandleProgressChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Course</label>
+
+            <select
+              name="course"
+              value={progressForm.course}
+              onChange={HandleProgressChange}
+              required
+            >
+              <option value="">
+                Select a course
+              </option>
+
+              {courses.map((course) => (
+                <option
+                  key={course._id}
+                  value={course._id}
+                >
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Progress percentage</label>
+
+            <input
+              type="number"
+              name="progressPercentage"
+              value={progressForm.progressPercentage}
+              onChange={HandleProgressChange}
+              min="0"
+              max="100"
+            />
+          </div>
+
+          <div className="form-action-row">
+            <button
+              className="primary-button action-button"
+              type="submit"
+            >
+              {editingProgressId
+                ? "Update Progress"
+                : "Create Progress"}
+            </button>
+
+            {editingProgressId && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setEditingProgressId(null);
+
+                  setProgressForm({
+                    student: "",
+                    course: "",
+                    progressPercentage: 0,
+                  });
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+      <section className="content-card module-section">
+        <div className="card-heading">
+          <h2>
+            Progress Records
+          </h2>
+        </div>
+
+
+        {progressRecords.length === 0 ? (
+          <p>
+            No progress records yet.
+          </p>
+        ) : (
+          <div className="instructor-course-list">
+            {progressRecords.map(
+              (progress) => (
+                <div
+                  className="instructor-course-row"
+                  key={progress._id}
+                >
+                  <div>
+                    <strong>
+                      Progress:{" "}
+                      {progress.progressPercentage}%
+                    </strong>
+
+
+                    <span>
+                      Student:{" "}
+                      {progress.student?._id ||
+                        progress.student}
+                    </span>
+                  </div>
+
+
+                  <div className="row-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() =>
+                        HandleProgressEdit(
+                          progress
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
+
+
+                    {user?.role === "admin" && (
+                      <button
+                        className="danger-button"
+                        onClick={() =>
+                          HandleProgressDelete(
+                            progress._id
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
       </section>
     </main>
   );
@@ -1296,23 +2752,117 @@ if (
   componentName ===
   "ProgressTrackingPage"
 ) {
-  return `import React from "react";
+  return `import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  ProgressApi,
+} from "../Services/Api";
+
+import {
+  useAuth,
+} from "../Context/AuthContext";
 
 const ProgressTrackingPage = () => {
-  const courses = [
-    {
-      name: "Introduction to Programming",
-      progress: 67,
-    },
-    {
-      name: "Web Development Fundamentals",
-      progress: 45,
-    },
-    {
-      name: "Database Essentials",
-      progress: 82,
-    },
-  ];
+  const { user } = useAuth();
+
+  const [progressRecords, setProgressRecords] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    const LoadProgress = async () => {
+      try {
+        const userId =
+          user?.id || user?._id;
+
+        if (!userId) {
+          setProgressRecords([]);
+          setLoading(false);
+          return;
+        }
+
+        const progressResponse =
+          await ProgressApi.getMine();
+
+        const myProgress =
+          progressResponse.data.data || [];
+
+        const ownProgress =
+          myProgress.filter(
+            (record) => {
+              const studentId =
+                record.student?._id ||
+                record.student;
+
+              return (
+                String(studentId) ===
+                String(userId)
+              );
+            }
+          );
+
+        setProgressRecords(
+          ownProgress
+        );
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load progress"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      LoadProgress();
+    }
+  }, [user]);
+
+  const GetCourseName = (
+    course
+  ) => {
+    return (
+      course?.title ||
+      course?._id ||
+      course ||
+      "Course unavailable"
+    );
+  };
+
+  const averageProgress =
+    progressRecords.length > 0
+      ? Math.round(
+          progressRecords.reduce(
+            (total, record) =>
+              total +
+              Number(
+                record.progressPercentage ||
+                0
+              ),
+            0
+          ) /
+            progressRecords.length
+        )
+      : 0;
+
+  if (loading) {
+    return (
+      <main className="page-shell">
+        <div className="content-card">
+          Loading progress...
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="page-shell">
@@ -1321,69 +2871,138 @@ const ProgressTrackingPage = () => {
           Performance
         </span>
 
-        <h1>Learning Progress</h1>
+        <h1>
+          Learning Progress
+        </h1>
 
         <p>
-          Review your overall learning activity
-          and course completion.
+          Review your current course
+          progress and learning activity.
         </p>
       </section>
 
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
+
       <section className="stats-grid">
         <article className="stat-card">
-          <span>Overall Progress</span>
-          <strong>68%</strong>
+          <span>
+            Overall Progress
+          </span>
+
+          <strong>
+            {averageProgress}%
+          </strong>
         </article>
 
         <article className="stat-card">
-          <span>Lessons Completed</span>
-          <strong>27</strong>
+          <span>
+            Courses Tracked
+          </span>
+
+          <strong>
+            {progressRecords.length}
+          </strong>
         </article>
 
         <article className="stat-card">
-          <span>Quizzes Completed</span>
-          <strong>8</strong>
+          <span>
+            Completed Courses
+          </span>
+
+          <strong>
+            {
+              progressRecords.filter(
+                (record) =>
+                  Number(
+                    record.progressPercentage
+                  ) >= 100
+              ).length
+            }
+          </strong>
         </article>
 
         <article className="stat-card">
-          <span>Assignments Submitted</span>
-          <strong>11</strong>
+          <span>
+            In Progress
+          </span>
+
+          <strong>
+            {
+              progressRecords.filter(
+                (record) =>
+                  Number(
+                    record.progressPercentage
+                  ) > 0 &&
+                  Number(
+                    record.progressPercentage
+                  ) < 100
+              ).length
+            }
+          </strong>
         </article>
       </section>
 
       <section className="content-card progress-card">
         <div className="card-heading">
-          <h2>Course Progress</h2>
+          <h2>
+            Course Progress
+          </h2>
         </div>
 
-        <div className="progress-course-list">
-          {courses.map((course) => (
-            <div
-              className="progress-course-row"
-              key={course.name}
-            >
-              <div className="progress-course-heading">
-                <strong>
-                  {course.name}
-                </strong>
-
-                <span>
-                  {course.progress}%
-                </span>
-              </div>
-
-              <div className="progress-track">
+        {progressRecords.length === 0 ? (
+          <p>
+            No progress records have
+            been added for your account yet.
+          </p>
+        ) : (
+          <div className="progress-course-list">
+            {progressRecords.map(
+              (record) => (
                 <div
-                  className="progress-fill"
-                  style={{
-                    width:
-                      \`\${course.progress}%\`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+                  className="progress-course-row"
+                  key={record._id}
+                >
+                  <div className="progress-course-heading">
+                    <strong>
+                      {GetCourseName(
+                        record.course
+                      )}
+                    </strong>
+
+                    <span>
+                      {
+                        record.progressPercentage
+                      }%
+                    </span>
+                  </div>
+
+                  <div className="progress-track">
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width:
+                          \`\${Math.min(
+                            Math.max(
+                              Number(
+                                record.progressPercentage ||
+                                0
+                              ),
+                              0
+                            ),
+                            100
+                          )}%\`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
       </section>
     </main>
   );

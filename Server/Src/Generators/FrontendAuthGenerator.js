@@ -46,23 +46,102 @@ export const CourseApi = {
     ),
 };
 
+export const LessonApi = {
+  getAll: () =>
+    API.get("/lesson"),
+
+  getById: (id) =>
+    API.get(\`/lesson/\${id}\`),
+
+  create: (data) =>
+    API.post("/lesson", data),
+
+  update: (id, data) =>
+    API.put(
+      \`/lesson/\${id}\`,
+      data
+    ),
+
+  remove: (id) =>
+    API.delete(
+      \`/lesson/\${id}\`
+    ),
+};
+
 export const QuizApi = {
   getAll: () =>
     API.get("/quiz"),
+
+  getById: (id) =>
+    API.get(\`/quiz/\${id}\`),
+
+  create: (data) =>
+    API.post("/quiz", data),
+
+  update: (id, data) =>
+    API.put(
+      \`/quiz/\${id}\`,
+      data
+    ),
+
+  remove: (id) =>
+    API.delete(
+      \`/quiz/\${id}\`
+    ),
 };
 
 export const AssignmentApi = {
   getAll: () =>
     API.get("/assignment"),
+
+  getById: (id) =>
+    API.get(\`/assignment/\${id}\`),
+
+  create: (data) =>
+    API.post("/assignment", data),
+
+  update: (id, data) =>
+    API.put(
+      \`/assignment/\${id}\`,
+      data
+    ),
+
+  remove: (id) =>
+    API.delete(
+      \`/assignment/\${id}\`
+    ),
 };
 
 export const ProgressApi = {
   getAll: () =>
     API.get("/progress"),
+
+  getMine: () =>
+    API.get("/progress/me"),
+
+  getById: (id) =>
+    API.get(\`/progress/\${id}\`),
+
+  create: (data) =>
+    API.post("/progress", data),
+
+  update: (id, data) =>
+    API.put(
+      \`/progress/\${id}\`,
+      data
+    ),
+
+  remove: (id) =>
+    API.delete(
+      \`/progress/\${id}\`
+    ),
 };
+
 
 export default API;
 `;
+
+
 };
 
 const GenerateAuthContext = () => {
@@ -1133,6 +1212,18 @@ a {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.module-section {
+  margin-top: 24px;
+}
+
+.module-section .card-heading {
+  margin-bottom: 20px;
+}
+
+.module-section .card-heading h2 {
+  margin: 0;
 }
 
 @media (max-width: 950px) {
