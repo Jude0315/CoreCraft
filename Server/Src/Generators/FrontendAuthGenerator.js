@@ -4,7 +4,7 @@ const GenerateApiService = () => {
 const API = axios.create({
   baseURL:
     import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api",
+    "http://localhost:5001/api",
 });
 
 API.interceptors.request.use(
@@ -23,6 +23,43 @@ API.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+export const CourseApi = {
+  getAll: () =>
+    API.get("/course"),
+
+  getById: (id) =>
+    API.get(\`/course/\${id}\`),
+
+  create: (data) =>
+    API.post("/course", data),
+
+  update: (id, data) =>
+    API.put(
+      \`/course/\${id}\`,
+      data
+    ),
+
+  remove: (id) =>
+    API.delete(
+      \`/course/\${id}\`
+    ),
+};
+
+export const QuizApi = {
+  getAll: () =>
+    API.get("/quiz"),
+};
+
+export const AssignmentApi = {
+  getAll: () =>
+    API.get("/assignment"),
+};
+
+export const ProgressApi = {
+  getAll: () =>
+    API.get("/progress"),
+};
 
 export default API;
 `;
@@ -1026,6 +1063,82 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.instructor-layout {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 24px;
+}
+
+.course-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.form-group textarea:focus {
+  outline: 2px solid
+    color-mix(in srgb, var(--accent) 25%, white);
+  border-color: var(--accent);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 20px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.form-success {
+  margin-bottom: 16px;
+  color: #047857;
+  background: #ecfdf5;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.form-action-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.danger-button {
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #b91c1c;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.danger-button:hover {
+  background: #fef2f2;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 950px) {
+  .instructor-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 950px) {

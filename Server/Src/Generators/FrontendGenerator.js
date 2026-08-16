@@ -327,33 +327,57 @@ export default Dashboard;
 `;
   }
 
-  if (componentName === "CoursesPage") {
-  return `import React from "react";
+ if (componentName === "CoursesPage") {
+  return `import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  CourseApi,
+} from "../Services/Api";
 
 const CoursesPage = () => {
-  const courses = [
-    {
-      title: "Introduction to Programming",
-      category: "Development",
-      progress: 67,
-      lessons: 12,
-      instructor: "CoreCraft Instructor",
-    },
-    {
-      title: "Web Development Fundamentals",
-      category: "Web",
-      progress: 45,
-      lessons: 10,
-      instructor: "CoreCraft Instructor",
-    },
-    {
-      title: "Database Essentials",
-      category: "Database",
-      progress: 82,
-      lessons: 9,
-      instructor: "CoreCraft Instructor",
-    },
-  ];
+  const [courses, setCourses] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    const LoadCourses = async () => {
+      try {
+        const response =
+          await CourseApi.getAll();
+
+        setCourses(
+          response.data.data || []
+        );
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load courses"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    LoadCourses();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="page-shell">
+        <div className="content-card">
+          Loading courses...
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="page-shell">
@@ -367,55 +391,72 @@ const CoursesPage = () => {
         </h1>
 
         <p>
-          Browse enrolled courses and track
-          your progress across each module.
+          Browse available courses and
+          continue learning.
         </p>
       </section>
 
-      <section className="course-grid">
-        {courses.map((course) => (
-          <article
-            key={course.title}
-            className="course-card"
-          >
-            <div className="course-card-top">
-              <span className="course-category">
-                {course.category}
-              </span>
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
 
-              <span className="course-progress-value">
-                {course.progress}%
-              </span>
-            </div>
+      {courses.length === 0 ? (
+        <section className="content-card">
+          <h2>No courses yet</h2>
 
-            <h3>{course.title}</h3>
+          <p>
+            Courses created by instructors
+            will appear here.
+          </p>
+        </section>
+      ) : (
+        <section className="course-grid">
+          {courses.map((course) => (
+            <article
+              key={course._id}
+              className="course-card"
+            >
+              <div className="course-card-top">
+                <span className="course-category">
+                  Course
+                </span>
 
-            <p className="course-instructor">
-              {course.instructor}
-            </p>
+                <span className="course-progress-value">
+                  {course.published
+                    ? "Published"
+                    : "Draft"}
+                </span>
+              </div>
 
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{
-                  width:
-                    \`\${course.progress}%\`,
-                }}
-              />
-            </div>
+              <h3>
+                {course.title}
+              </h3>
 
-            <div className="course-card-footer">
-              <span>
-                {course.lessons} lessons
-              </span>
+              <p className="course-instructor">
+                {course.description ||
+                  "No description available."}
+              </p>
 
-              <button className="secondary-button">
-                Continue
-              </button>
-            </div>
-          </article>
-        ))}
-      </section>
+              <div className="course-card-footer">
+                <span>
+                  {course.lessons?.length || 0}
+                  {" "}
+                  lessons
+                </span>
+
+                <a
+                  className="secondary-button"
+                  href={\`/course-details?id=\${course._id}\`}
+                >
+                  View Course
+                </a>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
     </main>
   );
 };
@@ -425,9 +466,228 @@ export default CoursesPage;
 }
 
 if (componentName === "InstructorPortal") {
-  return `import React from "react";
+  return `import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  CourseApi,
+} from "../Services/Api";
+
+import {
+  useAuth,
+} from "../Context/AuthContext";
 
 const InstructorPortal = () => {
+  const { user } = useAuth();
+
+  const [courses, setCourses] =
+    useState([]);
+
+  const [form, setForm] =
+    useState({
+      title: "",
+      description: "",
+      published: false,
+    });
+
+  const [editingCourseId, setEditingCourseId] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const LoadCourses = async () => {
+    try {
+      const response =
+        await CourseApi.getAll();
+
+      setCourses(
+        response.data.data || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load courses"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    LoadCourses();
+  }, []);
+
+  const HandleChange = (event) => {
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
+
+    setForm({
+      ...form,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
+    });
+  };
+
+  const ResetForm = () => {
+    setForm({
+      title: "",
+      description: "",
+      published: false,
+    });
+
+    setEditingCourseId(null);
+  };
+
+  const HandleSubmit = async (event) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        title: form.title,
+        description: form.description,
+        published: form.published,
+        instructor: user.id || user._id,
+      };
+
+      if (editingCourseId) {
+        await CourseApi.update(
+          editingCourseId,
+          payload
+        );
+
+        setSuccess(
+          "Course updated successfully"
+        );
+      } else {
+        await CourseApi.create(
+          payload
+        );
+
+        setSuccess(
+          "Course created successfully"
+        );
+      }
+
+      ResetForm();
+
+      await LoadCourses();
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save course"
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const HandleEdit = (course) => {
+    setEditingCourseId(
+      course._id
+    );
+
+    setForm({
+      title:
+        course.title || "",
+      description:
+        course.description || "",
+      published:
+        Boolean(course.published),
+    });
+
+    setSuccess("");
+    setError("");
+  };
+
+  const HandleTogglePublish =
+    async (course) => {
+      try {
+        setError("");
+        setSuccess("");
+
+        await CourseApi.update(
+          course._id,
+          {
+            published:
+              !course.published,
+          }
+        );
+
+        setSuccess(
+          course.published
+            ? "Course unpublished successfully"
+            : "Course published successfully"
+        );
+
+        await LoadCourses();
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to update course status"
+        );
+      }
+    };
+
+  const HandleDelete =
+    async (courseId) => {
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to delete this course?"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setError("");
+        setSuccess("");
+
+        await CourseApi.remove(
+          courseId
+        );
+
+        setSuccess(
+          "Course deleted successfully"
+        );
+
+        if (
+          editingCourseId === courseId
+        ) {
+          ResetForm();
+        }
+
+        await LoadCourses();
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to delete course"
+        );
+      }
+    };
+
   return (
     <main className="page-shell">
       <section className="dashboard-header">
@@ -441,109 +701,190 @@ const InstructorPortal = () => {
           </h1>
 
           <p>
-            Create courses, monitor learners
-            and manage teaching activities.
+            Create, update and publish
+            teaching content.
           </p>
         </div>
-
-        <button className="primary-button action-button">
-          + Create Course
-        </button>
       </section>
 
-      <section className="stats-grid">
-        <article className="stat-card">
-          <span>Active Courses</span>
-          <strong>6</strong>
+      <section className="instructor-layout">
+        <article className="content-card">
+          <div className="card-heading">
+            <h2>
+              {editingCourseId
+                ? "Edit Course"
+                : "Create Course"}
+            </h2>
+          </div>
+
+          {error && (
+            <div className="form-error">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="form-success">
+              {success}
+            </div>
+          )}
+
+          <form
+            className="course-form"
+            onSubmit={HandleSubmit}
+          >
+            <div className="form-group">
+              <label>
+                Course title
+              </label>
+
+              <input
+                name="title"
+                value={form.title}
+                onChange={HandleChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>
+                Description
+              </label>
+
+              <textarea
+                name="description"
+                value={
+                  form.description
+                }
+                onChange={HandleChange}
+                rows="5"
+              />
+            </div>
+
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                name="published"
+                checked={
+                  form.published
+                }
+                onChange={HandleChange}
+              />
+
+              Published
+            </label>
+
+            <div className="form-action-row">
+              <button
+                className="primary-button action-button"
+                disabled={submitting}
+              >
+                {submitting
+                  ? "Saving..."
+                  : editingCourseId
+                    ? "Update Course"
+                    : "Create Course"}
+              </button>
+
+              {editingCourseId && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={ResetForm}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
         </article>
 
-        <article className="stat-card">
-          <span>Total Students</span>
-          <strong>128</strong>
-        </article>
-
-        <article className="stat-card">
-          <span>Assignments</span>
-          <strong>14</strong>
-        </article>
-
-        <article className="stat-card">
-          <span>Average Completion</span>
-          <strong>76%</strong>
-        </article>
-      </section>
-
-      <section className="dashboard-grid">
         <article className="content-card">
           <div className="card-heading">
             <h2>Your Courses</h2>
           </div>
 
-          <div className="instructor-course-list">
-            <div className="instructor-course-row">
-              <div>
-                <strong>
-                  Introduction to Programming
-                </strong>
+          {loading ? (
+            <p>
+              Loading courses...
+            </p>
+          ) : courses.length === 0 ? (
+            <p>
+              No courses have been created yet.
+            </p>
+          ) : (
+            <div className="instructor-course-list">
+              {courses.map(
+                (course) => (
+                  <div
+                    className="instructor-course-row"
+                    key={course._id}
+                  >
+                    <div>
+                      <strong>
+                        {course.title}
+                      </strong>
 
-                <span>
-                  42 students
-                </span>
-              </div>
+                      <span>
+                        {course.published
+                          ? "Published"
+                          : "Draft"}
+                      </span>
+                    </div>
 
-              <div className="row-actions">
-                <button className="secondary-button">
-                  Manage
-                </button>
-              </div>
+                    <div className="row-actions">
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          HandleEdit(
+                            course
+                          )
+                        }
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          HandleTogglePublish(
+                            course
+                          )
+                        }
+                      >
+                        {course.published
+                          ? "Unpublish"
+                          : "Publish"}
+                      </button>
+
+                      <a
+                        className="secondary-button"
+                        href={
+                          \`/course-details?id=\${course._id}\`
+                        }
+                      >
+                        View
+                      </a>
+
+                      {user?.role ===
+                        "admin" && (
+                        <button
+                          className="danger-button"
+                          onClick={() =>
+                            HandleDelete(
+                              course._id
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
             </div>
-
-            <div className="instructor-course-row">
-              <div>
-                <strong>
-                  Web Development Fundamentals
-                </strong>
-
-                <span>
-                  36 students
-                </span>
-              </div>
-
-              <div className="row-actions">
-                <button className="secondary-button">
-                  Manage
-                </button>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article className="content-card">
-          <div className="card-heading">
-            <h2>Recent Activity</h2>
-          </div>
-
-          <div className="activity-list">
-            <div>
-              <strong>
-                New student enrolled
-              </strong>
-
-              <span>
-                Programming course
-              </span>
-            </div>
-
-            <div>
-              <strong>
-                Quiz submitted
-              </strong>
-
-              <span>
-                Web Development
-              </span>
-            </div>
-          </div>
+          )}
         </article>
       </section>
     </main>
@@ -552,62 +893,137 @@ const InstructorPortal = () => {
 
 export default InstructorPortal;
 `;
+}
+
 
 if (componentName === "CourseDetailsPage") {
-  return `import React from "react";
+  return `import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useSearchParams,
+} from "react-router-dom";
+
+import {
+  CourseApi,
+} from "../Services/Api";
 
 const CourseDetailsPage = () => {
-  const lessons = [
-    {
-      title: "Introduction",
-      duration: "12 min",
-      completed: true,
-    },
-    {
-      title: "Variables and Data Types",
-      duration: "24 min",
-      completed: true,
-    },
-    {
-      title: "Control Flow",
-      duration: "32 min",
-      completed: false,
-    },
-    {
-      title: "Functions",
-      duration: "28 min",
-      completed: false,
-    },
-  ];
+  const [searchParams] =
+    useSearchParams();
+
+  const courseId =
+    searchParams.get("id");
+
+  const [course, setCourse] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    const LoadCourse = async () => {
+      if (!courseId) {
+        setError(
+          "Course ID was not provided."
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response =
+          await CourseApi.getById(
+            courseId
+          );
+
+        setCourse(
+          response.data.data
+        );
+      } catch (error) {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load course"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    LoadCourse();
+  }, [courseId]);
+
+  if (loading) {
+    return (
+      <main className="page-shell">
+        <div className="content-card">
+          Loading course...
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !course) {
+    return (
+      <main className="page-shell">
+        <div className="form-error">
+          {error || "Course not found"}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="page-shell">
       <section className="course-detail-header">
         <div>
           <span className="eyebrow">
-            Development
+            Course
           </span>
 
           <h1>
-            Introduction to Programming
+            {course.title}
           </h1>
 
           <p>
-            Learn programming fundamentals,
-            problem solving and core development
-            concepts through structured lessons.
+            {course.description ||
+              "No course description available."}
           </p>
         </div>
 
         <div className="course-summary-card">
-          <strong>67%</strong>
-          <span>Course Progress</span>
+          <strong>
+            {course.published
+              ? "Published"
+              : "Draft"}
+          </strong>
 
-          <div className="progress-track">
-            <div
-              className="progress-fill"
-              style={{ width: "67%" }}
-            />
+          <span>
+            Course Status
+          </span>
+
+          <div className="detail-list">
+            <div>
+              <span>Lessons</span>
+
+              <strong>
+                {course.lessons?.length || 0}
+              </strong>
+            </div>
+
+            <div>
+              <span>Students</span>
+
+              <strong>
+                {course.students?.length || 0}
+              </strong>
+            </div>
           </div>
         </div>
       </section>
@@ -615,73 +1031,75 @@ const CourseDetailsPage = () => {
       <section className="course-detail-grid">
         <article className="content-card">
           <div className="card-heading">
-            <h2>Course Content</h2>
+            <h2>
+              Course Content
+            </h2>
           </div>
 
-          <div className="lesson-list">
-            {lessons.map(
-              (lesson, index) => (
-                <div
-                  className="lesson-row"
-                  key={lesson.title}
-                >
-                  <div className="lesson-number">
-                    {index + 1}
-                  </div>
-
-                  <div className="lesson-info">
-                    <strong>
-                      {lesson.title}
-                    </strong>
-
-                    <span>
-                      {lesson.duration}
-                    </span>
-                  </div>
-
-                  <span
-                    className={
-                      lesson.completed
-                        ? "status-complete"
-                        : "status-pending"
+          {course.lessons?.length ? (
+            <div className="lesson-list">
+              {course.lessons.map(
+                (lesson, index) => (
+                  <div
+                    className="lesson-row"
+                    key={
+                      lesson._id ||
+                      lesson
                     }
                   >
-                    {lesson.completed
-                      ? "Completed"
-                      : "Continue"}
-                  </span>
-                </div>
-              )
-            )}
-          </div>
+                    <div className="lesson-number">
+                      {index + 1}
+                    </div>
+
+                    <div className="lesson-info">
+                      <strong>
+                        Lesson {index + 1}
+                      </strong>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <p>
+              No lessons have been
+              added to this course yet.
+            </p>
+          )}
         </article>
 
         <aside className="content-card">
           <div className="card-heading">
-            <h2>Course Information</h2>
+            <h2>
+              Course Information
+            </h2>
           </div>
 
           <div className="detail-list">
             <div>
-              <span>Instructor</span>
+              <span>Status</span>
+
               <strong>
-                CoreCraft Instructor
+                {course.published
+                  ? "Published"
+                  : "Draft"}
               </strong>
             </div>
 
             <div>
               <span>Lessons</span>
-              <strong>12</strong>
+
+              <strong>
+                {course.lessons?.length || 0}
+              </strong>
             </div>
 
             <div>
-              <span>Level</span>
-              <strong>Beginner</strong>
-            </div>
+              <span>Students</span>
 
-            <div>
-              <span>Assignments</span>
-              <strong>3</strong>
+              <strong>
+                {course.students?.length || 0}
+              </strong>
             </div>
           </div>
         </aside>
@@ -692,6 +1110,7 @@ const CourseDetailsPage = () => {
 
 export default CourseDetailsPage;
 `;
+}
 
 if (componentName === "QuizzesPage") {
   return `import React from "react";
@@ -785,6 +1204,7 @@ const QuizzesPage = () => {
 export default QuizzesPage;
 `;
 }
+
 if (componentName === "AssignmentsPage") {
   return `import React from "react";
 
@@ -871,10 +1291,109 @@ const AssignmentsPage = () => {
 export default AssignmentsPage;
 `;
 }
+
+if (
+  componentName ===
+  "ProgressTrackingPage"
+) {
+  return `import React from "react";
+
+const ProgressTrackingPage = () => {
+  const courses = [
+    {
+      name: "Introduction to Programming",
+      progress: 67,
+    },
+    {
+      name: "Web Development Fundamentals",
+      progress: 45,
+    },
+    {
+      name: "Database Essentials",
+      progress: 82,
+    },
+  ];
+
+  return (
+    <main className="page-shell">
+      <section className="page-header">
+        <span className="eyebrow">
+          Performance
+        </span>
+
+        <h1>Learning Progress</h1>
+
+        <p>
+          Review your overall learning activity
+          and course completion.
+        </p>
+      </section>
+
+      <section className="stats-grid">
+        <article className="stat-card">
+          <span>Overall Progress</span>
+          <strong>68%</strong>
+        </article>
+
+        <article className="stat-card">
+          <span>Lessons Completed</span>
+          <strong>27</strong>
+        </article>
+
+        <article className="stat-card">
+          <span>Quizzes Completed</span>
+          <strong>8</strong>
+        </article>
+
+        <article className="stat-card">
+          <span>Assignments Submitted</span>
+          <strong>11</strong>
+        </article>
+      </section>
+
+      <section className="content-card progress-card">
+        <div className="card-heading">
+          <h2>Course Progress</h2>
+        </div>
+
+        <div className="progress-course-list">
+          {courses.map((course) => (
+            <div
+              className="progress-course-row"
+              key={course.name}
+            >
+              <div className="progress-course-heading">
+                <strong>
+                  {course.name}
+                </strong>
+
+                <span>
+                  {course.progress}%
+                </span>
+              </div>
+
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width:
+                      \`\${course.progress}%\`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+};
+
+export default ProgressTrackingPage;
+`;
 }
 
 
-}
 
   return GenerateGenericPage(
     componentName,
