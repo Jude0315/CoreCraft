@@ -1,4 +1,83 @@
-const GenerateAuthController = () => {
+const FormatRoleList = (
+  roles = []
+) => {
+  const safeRoles =
+    Array.isArray(roles) &&
+    roles.length > 0
+      ? roles
+      : ["user"];
+
+  return safeRoles;
+};
+
+
+const GenerateUserModel = (
+  roles = []
+) => {
+  const safeRoles =
+    FormatRoleList(roles);
+
+  const defaultRole =
+    safeRoles[0];
+
+  return `const mongoose =
+  require("mongoose");
+
+
+const UserSchema =
+  new mongoose.Schema(
+    {
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+
+      email: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+      },
+
+      password: {
+        type: String,
+        required: true,
+      },
+
+      role: {
+        type: String,
+        enum: ${JSON.stringify(
+          safeRoles
+        )},
+        default: "${defaultRole}",
+      },
+    },
+    {
+      timestamps: true,
+    }
+  );
+
+
+module.exports =
+  mongoose.model(
+    "User",
+    UserSchema
+  );
+`;
+};
+
+
+const GenerateAuthController = (
+  roles = []
+) => {
+  const safeRoles =
+    FormatRoleList(roles);
+
+  const defaultRole =
+    safeRoles[0];
+
   return `const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -20,6 +99,19 @@ const Register = async (req, res) => {
       });
     }
 
+    const allowedRoles =
+      ${JSON.stringify(safeRoles)};
+
+    if (
+      role &&
+      !allowedRoles.includes(role)
+    ) {
+      return res.status(400).json({
+        message:
+          "Invalid account role",
+      });
+    }
+
     const existingUser = await User.findOne({
       email,
     });
@@ -38,7 +130,8 @@ const Register = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || "student",
+      role:
+        role || "${defaultRole}",
     });
 
     return res.status(201).json({
@@ -147,10 +240,54 @@ const GetProfile = async (req, res) => {
   }
 };
 
+const GetUsers = async (req, res) => {
+  try {
+    const users =
+      await User.find()
+        .select("-password")
+        .sort({
+          createdAt: -1,
+        });
+
+    return res.status(200).json({
+      data: users,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+const GetUserById = async (req, res) => {
+  try {
+    const user =
+      await User.findById(
+        req.params.id
+      ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      data: user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   Register,
   Login,
   GetProfile,
+  GetUsers,
+  GetUserById,
 };
 `;
 };
@@ -228,6 +365,8 @@ const {
   Register,
   Login,
   GetProfile,
+  GetUsers,
+  GetUserById,
 } = require("../Controllers/AuthController");
 
 const AuthMiddleware = require(
@@ -252,32 +391,69 @@ Router.get(
   GetProfile
 );
 
+Router.get(
+  "/users",
+  AuthMiddleware,
+  GetUsers
+);
+
+Router.get(
+  "/users/:id",
+  AuthMiddleware,
+  GetUserById
+);
+
 module.exports = Router;
 `;
 };
 
-const GenerateAuthFiles = () => {
+const GenerateAuthFiles = (
+  specification = {}
+) => {
+  const roles =
+    Array.isArray(
+      specification.roles
+    )
+      ? specification.roles
+      : [];
+
   return {
-    controller: {
-      filename: "AuthController.js",
+    model: {
+      filename:
+        "User.js",
+
       content:
-        GenerateAuthController(),
+        GenerateUserModel(roles),
+    },
+
+    controller: {
+      filename:
+        "AuthController.js",
+
+      content:
+        GenerateAuthController(roles),
     },
 
     authMiddleware: {
-      filename: "AuthMiddleware.js",
+      filename:
+        "AuthMiddleware.js",
+
       content:
         GenerateAuthMiddleware(),
     },
 
     roleMiddleware: {
-      filename: "RoleMiddleware.js",
+      filename:
+        "RoleMiddleware.js",
+
       content:
         GenerateRoleMiddleware(),
     },
 
     routes: {
-      filename: "AuthRoutes.js",
+      filename:
+        "AuthRoutes.js",
+
       content:
         GenerateAuthRoutes(),
     },
@@ -286,8 +462,10 @@ const GenerateAuthFiles = () => {
 
 module.exports = {
   GenerateAuthFiles,
+  GenerateUserModel,
   GenerateAuthController,
   GenerateAuthMiddleware,
   GenerateRoleMiddleware,
   GenerateAuthRoutes,
+  FormatRoleList,
 };

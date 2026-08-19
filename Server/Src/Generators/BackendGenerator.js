@@ -1,29 +1,184 @@
-const GenerateBackendFiles = (specification) => {
-  if (!specification) {
-    throw new Error("Generation specification is required");
+/* =========================================================
+   CoreCraft Dynamic Backend Generator
+
+   This file generates Express controllers and routes
+   directly from the AI generation specification.
+
+   It contains NO LMS-specific entities or roles.
+
+   Example supported applications:
+   - Construction maintenance system
+   - Clinic appointment system
+   - Vehicle rental system
+   - Hotel reservation system
+   - Employee leave system
+   - Inventory system
+   - Any other dynamically described MERN application
+   ========================================================= */
+
+
+/* =========================================================
+   Helper: Normalize Entity Name
+
+   Example:
+   "maintenance job" -> "MaintenanceJob"
+   "Machine"         -> "Machine"
+   ========================================================= */
+
+const NormalizeEntityName = (name = "") => {
+  return name
+    .trim()
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, char) =>
+      char.toUpperCase()
+    )
+    .replace(/^./, (char) =>
+      char.toUpperCase()
+    );
+};
+
+
+/* =========================================================
+   Helper: Get Entity Name
+
+   Supports both:
+   "Machine"
+
+   and:
+
+   {
+     name: "Machine",
+     fields: [...]
+   }
+   ========================================================= */
+
+const GetEntityName = (entity) => {
+  if (typeof entity === "string") {
+    return NormalizeEntityName(entity);
   }
 
-  const entities = Array.isArray(specification.entities)
-    ? specification.entities
-    : [];
+  return NormalizeEntityName(
+    entity?.name || ""
+  );
+};
 
-  const apiModules = Array.isArray(specification.apiModules)
-    ? specification.apiModules
-    : [];
 
-  const controllerFiles = entities.map((entity) => ({
-    type: "controller",
-    entity,
-    filename: `${entity}Controller.js`,
-    content: GenerateController(entity),
-  }));
+/* =========================================================
+   Helper: Find API Module For Entity
 
-  const routeFiles = entities.map((entity) => ({
-    type: "route",
-    entity,
-    filename: `${entity}Routes.js`,
-    content: GenerateRoute(entity),
-  }));
+   The AI specification controls what operations are
+   available for each entity.
+
+   Example:
+
+   {
+     entity: "Inspection",
+     operations: ["create", "read"],
+     protected: true,
+     roles: ["technician"]
+   }
+   ========================================================= */
+
+const FindApiModule = (
+  entityName,
+  apiModules
+) => {
+  return apiModules.find(
+    (module) =>
+      NormalizeEntityName(
+        module.entity
+      ) === entityName
+  );
+};
+
+
+/* =========================================================
+   Generate All Backend Files
+   ========================================================= */
+
+const GenerateBackendFiles = (
+  specification
+) => {
+  if (!specification) {
+    throw new Error(
+      "Generation specification is required"
+    );
+  }
+
+  const entities =
+    Array.isArray(specification.entities)
+      ? specification.entities
+      : [];
+
+  const apiModules =
+    Array.isArray(
+      specification.apiModules
+    )
+      ? specification.apiModules
+      : [];
+
+  const controllerFiles = [];
+  const routeFiles = [];
+
+  entities.forEach((entity) => {
+    const entityName =
+      GetEntityName(entity);
+
+    if (!entityName) {
+      return;
+    }
+
+    const apiModule =
+      FindApiModule(
+        entityName,
+        apiModules
+      );
+
+    /*
+      If the AI did not explicitly create an API module,
+      CoreCraft generates standard CRUD as a safe fallback.
+    */
+    const operations =
+      Array.isArray(
+        apiModule?.operations
+      ) &&
+      apiModule.operations.length > 0
+        ? apiModule.operations
+        : [
+            "create",
+            "read",
+            "update",
+            "delete",
+          ];
+
+    controllerFiles.push({
+      type: "controller",
+      entity: entityName,
+
+      filename:
+        `${entityName}Controller.js`,
+
+      content:
+        GenerateController(
+          entityName,
+          operations
+        ),
+    });
+
+    routeFiles.push({
+      type: "route",
+      entity: entityName,
+
+      filename:
+        `${entityName}Routes.js`,
+
+      content:
+        GenerateRoute(
+          entityName,
+          apiModule,
+          operations
+        ),
+    });
+  });
 
   return {
     controllerFiles,
@@ -32,266 +187,158 @@ const GenerateBackendFiles = (specification) => {
   };
 };
 
-const GenerateController = (entity) => {
-  if (entity === "Progress") {
-    return GenerateProgressController();
-  }
 
-  return `const ${entity} = require("../Models/${entity}");
+/* =========================================================
+   Generate Controller
+   ========================================================= */
 
+const GenerateController = (
+  entity,
+  operations = []
+) => {
+  const normalizedOperations =
+    operations.map((operation) =>
+      operation.toLowerCase()
+    );
+
+  const functions = [];
+  const exportsList = [];
+
+
+  /* -------------------------------------------------------
+     CREATE
+     ------------------------------------------------------- */
+
+  if (
+    normalizedOperations.includes(
+      "create"
+    )
+  ) {
+    functions.push(`
 const Create${entity} = async (req, res) => {
   try {
-    const item = await ${entity}.create(req.body);
+    const item =
+      await ${entity}.create(
+        req.body
+      );
 
-    return res.status(201).json({
-      message: "${entity} created successfully",
-      data: item,
-    });
+    return res
+      .status(201)
+      .json({
+        message:
+          "${entity} created successfully",
+
+        data: item,
+      });
   } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        message:
+          error.message,
+      });
   }
 };
+`);
 
+    exportsList.push(
+      `Create${entity}`
+    );
+  }
+
+
+  /* -------------------------------------------------------
+     READ
+     ------------------------------------------------------- */
+
+  if (
+    normalizedOperations.includes(
+      "read"
+    )
+  ) {
+    functions.push(`
 const GetAll${entity}s = async (req, res) => {
   try {
-    const items = await ${entity}.find();
+    const items =
+      await ${entity}.find();
 
-    return res.status(200).json({
-      count: items.length,
-      data: items,
-    });
+    return res
+      .status(200)
+      .json({
+        count:
+          items.length,
+
+        data:
+          items,
+      });
   } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        message:
+          error.message,
+      });
   }
 };
+
 
 const Get${entity}ById = async (req, res) => {
   try {
-    const item = await ${entity}.findById(req.params.id);
+    const item =
+      await ${entity}.findById(
+        req.params.id
+      );
 
     if (!item) {
-      return res.status(404).json({
-        message: "${entity} not found",
-      });
+      return res
+        .status(404)
+        .json({
+          message:
+            "${entity} not found",
+        });
     }
 
-    return res.status(200).json({
-      data: item,
-    });
+    return res
+      .status(200)
+      .json({
+        data:
+          item,
+      });
   } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        message:
+          error.message,
+      });
   }
 };
+`);
 
+    exportsList.push(
+      `GetAll${entity}s`
+    );
+
+    exportsList.push(
+      `Get${entity}ById`
+    );
+  }
+
+
+  /* -------------------------------------------------------
+     UPDATE
+     ------------------------------------------------------- */
+
+  if (
+    normalizedOperations.includes(
+      "update"
+    )
+  ) {
+    functions.push(`
 const Update${entity} = async (req, res) => {
   try {
-    const item = await ${entity}.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-
-    if (!item) {
-      return res.status(404).json({
-        message: "${entity} not found",
-      });
-    }
-
-    return res.status(200).json({
-      message: "${entity} updated successfully",
-      data: item,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-const Delete${entity} = async (req, res) => {
-  try {
-    const item = await ${entity}.findByIdAndDelete(
-      req.params.id
-    );
-
-    if (!item) {
-      return res.status(404).json({
-        message: "${entity} not found",
-      });
-    }
-
-    return res.status(200).json({
-      message: "${entity} deleted successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-module.exports = {
-  Create${entity},
-  GetAll${entity}s,
-  Get${entity}ById,
-  Update${entity},
-  Delete${entity},
-};
-`;
-};
-
-const GenerateProgressController = () => {
-  return `const Progress = require("../Models/Progress");
-
-const PopulateProgressQuery = (query) => {
-  return query
-    .populate("course")
-    .populate(
-      "student",
-      "name email role"
-    );
-};
-
-const GetCurrentUserId = (req) => {
-  return req.user?.id || req.user?._id;
-};
-
-const IsProgressOwner = (
-  progress,
-  userId
-) => {
-  const studentId =
-    progress.student?._id ||
-    progress.student;
-
-  return (
-    String(studentId) ===
-    String(userId)
-  );
-};
-
-const CreateProgress = async (req, res) => {
-  try {
-    const item = await Progress.create(req.body);
-
-    const populatedItem =
-      await PopulateProgressQuery(
-        Progress.findById(item._id)
-      );
-
-    return res.status(201).json({
-      message:
-        "Progress created successfully",
-      data: populatedItem,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-const GetAllProgresss = async (req, res) => {
-  try {
-    const items =
-      await PopulateProgressQuery(
-        Progress.find()
-      );
-
-    return res.status(200).json({
-      count: items.length,
-      data: items,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-const GetMyProgress = async (req, res) => {
-  try {
-    const userId =
-      GetCurrentUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        message:
-          "Authentication required",
-      });
-    }
-
-    const items =
-      await PopulateProgressQuery(
-        Progress.find({
-          student: userId,
-        })
-      );
-
-    return res.status(200).json({
-      count: items.length,
-      data: items,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-const GetProgressById = async (req, res) => {
-  try {
     const item =
-      await PopulateProgressQuery(
-        Progress.findById(req.params.id)
-      );
-
-    if (!item) {
-      return res.status(404).json({
-        message: "Progress not found",
-      });
-    }
-
-    const isManager =
-      req.user?.role === "instructor" ||
-      req.user?.role === "admin";
-
-    if (
-      !isManager &&
-      !IsProgressOwner(
-        item,
-        GetCurrentUserId(req)
-      )
-    ) {
-      return res.status(403).json({
-        message:
-          "You do not have permission to access this resource",
-      });
-    }
-
-    return res.status(200).json({
-      data: item,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-const UpdateProgress = async (req, res) => {
-  try {
-    const item =
-      await Progress.findByIdAndUpdate(
+      await ${entity}.findByIdAndUpdate(
         req.params.id,
         req.body,
         {
@@ -301,195 +348,366 @@ const UpdateProgress = async (req, res) => {
       );
 
     if (!item) {
-      return res.status(404).json({
-        message: "Progress not found",
-      });
+      return res
+        .status(404)
+        .json({
+          message:
+            "${entity} not found",
+        });
     }
 
-    const populatedItem =
-      await PopulateProgressQuery(
-        Progress.findById(item._id)
-      );
+    return res
+      .status(200)
+      .json({
+        message:
+          "${entity} updated successfully",
 
-    return res.status(200).json({
-      message:
-        "Progress updated successfully",
-      data: populatedItem,
-    });
+        data:
+          item,
+      });
   } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        message:
+          error.message,
+      });
   }
 };
+`);
 
-const DeleteProgress = async (req, res) => {
+    exportsList.push(
+      `Update${entity}`
+    );
+  }
+
+
+  /* -------------------------------------------------------
+     DELETE
+     ------------------------------------------------------- */
+
+  if (
+    normalizedOperations.includes(
+      "delete"
+    )
+  ) {
+    functions.push(`
+const Delete${entity} = async (req, res) => {
   try {
     const item =
-      await Progress.findByIdAndDelete(
+      await ${entity}.findByIdAndDelete(
         req.params.id
       );
 
     if (!item) {
-      return res.status(404).json({
-        message: "Progress not found",
-      });
+      return res
+        .status(404)
+        .json({
+          message:
+            "${entity} not found",
+        });
     }
 
-    return res.status(200).json({
-      message:
-        "Progress deleted successfully",
-    });
+    return res
+      .status(200)
+      .json({
+        message:
+          "${entity} deleted successfully",
+      });
   } catch (error) {
-    return res.status(500).json({
-      message: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        message:
+          error.message,
+      });
   }
 };
+`);
+
+    exportsList.push(
+      `Delete${entity}`
+    );
+  }
+
+
+  /* -------------------------------------------------------
+     Final Controller File
+     ------------------------------------------------------- */
+
+  return `const ${entity} =
+  require("../Models/${entity}");
+
+${functions.join("\n")}
 
 module.exports = {
-  CreateProgress,
-  GetAllProgresss,
-  GetMyProgress,
-  GetProgressById,
-  UpdateProgress,
-  DeleteProgress,
+  ${exportsList.join(",\n  ")}
 };
 `;
 };
 
-const GenerateRoute = (entity) => {
-  if (entity === "Progress") {
-    return GenerateProgressRoute();
+
+/* =========================================================
+   Generate Route Middleware
+   ========================================================= */
+
+const GenerateMiddleware = (
+  apiModule
+) => {
+  if (!apiModule) {
+    return "";
   }
 
-  const isProtectedEntity = entity !== "User";
+  const isProtected =
+    apiModule.protected === true;
 
-  const instructorManagedEntities = [
-    "Course",
-    "Lesson",
-    "Quiz",
-    "Assignment",
-    "Progress",
-    "Student",
-    "Instructor",
-  ];
+  const roles =
+    Array.isArray(
+      apiModule.roles
+    )
+      ? apiModule.roles
+      : [];
 
-  const requiresInstructorRole =
-    instructorManagedEntities.includes(entity);
+  if (!isProtected) {
+    return "";
+  }
 
-  const middlewareImports = isProtectedEntity
-    ? `const AuthMiddleware = require("../Middleware/AuthMiddleware");
-const AllowRoles = require("../Middleware/RoleMiddleware");`
-    : "";
+  /*
+    Protected, but no role restriction.
 
-  const createMiddleware = requiresInstructorRole
-    ? `AuthMiddleware, AllowRoles("instructor", "admin"), `
-    : "";
+    Example:
+    AuthMiddleware,
+  */
+  if (roles.length === 0) {
+    return "AuthMiddleware, ";
+  }
 
-  const readMiddleware = isProtectedEntity
-    ? `AuthMiddleware, `
-    : "";
+  /*
+    Protected and role restricted.
 
-  const updateMiddleware = requiresInstructorRole
-    ? `AuthMiddleware, AllowRoles("instructor", "admin"), `
-    : "";
+    Example:
+    AuthMiddleware,
+    AllowRoles("technician", "manager"),
+  */
+  const roleArguments =
+    roles
+      .map(
+        (role) =>
+          `"${role}"`
+      )
+      .join(", ");
 
-  const deleteMiddleware = requiresInstructorRole
-    ? `AuthMiddleware, AllowRoles("admin"), `
-    : "";
-
-  return `const express = require("express");
-
-const {
-  Create${entity},
-  GetAll${entity}s,
-  Get${entity}ById,
-  Update${entity},
-  Delete${entity},
-} = require("../Controllers/${entity}Controller");
-
-${middlewareImports}
-
-const Router = express.Router();
-
-Router.post("/", ${createMiddleware}Create${entity});
-
-Router.get("/", ${readMiddleware}GetAll${entity}s);
-
-Router.get("/:id", ${readMiddleware}Get${entity}ById);
-
-Router.put("/:id", ${updateMiddleware}Update${entity});
-
-Router.delete("/:id", ${deleteMiddleware}Delete${entity});
-
-module.exports = Router;
-`;
+  return `AuthMiddleware, AllowRoles(${roleArguments}), `;
 };
 
-const GenerateProgressRoute = () => {
-  return `const express = require("express");
 
-const {
-  CreateProgress,
-  GetAllProgresss,
-  GetMyProgress,
-  GetProgressById,
-  UpdateProgress,
-  DeleteProgress,
-} = require("../Controllers/ProgressController");
+/* =========================================================
+   Generate Express Route File
+   ========================================================= */
 
-const AuthMiddleware = require("../Middleware/AuthMiddleware");
-const AllowRoles = require("../Middleware/RoleMiddleware");
+const GenerateRoute = (
+  entity,
+  apiModule = {},
+  operations = []
+) => {
+  const normalizedOperations =
+    operations.map((operation) =>
+      operation.toLowerCase()
+    );
 
-const Router = express.Router();
+  const protectedRoute =
+    apiModule?.protected === true;
 
+  const roles =
+    Array.isArray(
+      apiModule?.roles
+    )
+      ? apiModule.roles
+      : [];
+
+  const imports = [];
+
+
+  /* -------------------------------------------------------
+     Controller Imports
+     ------------------------------------------------------- */
+
+  if (
+    normalizedOperations.includes(
+      "create"
+    )
+  ) {
+    imports.push(
+      `Create${entity}`
+    );
+  }
+
+  if (
+    normalizedOperations.includes(
+      "read"
+    )
+  ) {
+    imports.push(
+      `GetAll${entity}s`
+    );
+
+    imports.push(
+      `Get${entity}ById`
+    );
+  }
+
+  if (
+    normalizedOperations.includes(
+      "update"
+    )
+  ) {
+    imports.push(
+      `Update${entity}`
+    );
+  }
+
+  if (
+    normalizedOperations.includes(
+      "delete"
+    )
+  ) {
+    imports.push(
+      `Delete${entity}`
+    );
+  }
+
+
+  /* -------------------------------------------------------
+     Middleware Imports
+     ------------------------------------------------------- */
+
+  let middlewareImports = "";
+
+  if (protectedRoute) {
+    middlewareImports += `
+const AuthMiddleware =
+  require("../Middleware/AuthMiddleware");
+`;
+
+    if (roles.length > 0) {
+      middlewareImports += `
+const AllowRoles =
+  require("../Middleware/RoleMiddleware");
+`;
+    }
+  }
+
+
+  /* -------------------------------------------------------
+     Middleware Expression
+     ------------------------------------------------------- */
+
+  const middleware =
+    GenerateMiddleware(
+      apiModule
+    );
+
+
+  /* -------------------------------------------------------
+     Route Definitions
+     ------------------------------------------------------- */
+
+  const routes = [];
+
+
+  if (
+    normalizedOperations.includes(
+      "create"
+    )
+  ) {
+    routes.push(`
 Router.post(
   "/",
-  AuthMiddleware,
-  AllowRoles("instructor", "admin"),
-  CreateProgress
+  ${middleware}Create${entity}
 );
+`);
+  }
 
+
+  if (
+    normalizedOperations.includes(
+      "read"
+    )
+  ) {
+    routes.push(`
 Router.get(
   "/",
-  AuthMiddleware,
-  AllowRoles("instructor", "admin"),
-  GetAllProgresss
-);
-
-Router.get(
-  "/me",
-  AuthMiddleware,
-  GetMyProgress
+  ${middleware}GetAll${entity}s
 );
 
 Router.get(
   "/:id",
-  AuthMiddleware,
-  GetProgressById
+  ${middleware}Get${entity}ById
 );
+`);
+  }
 
+
+  if (
+    normalizedOperations.includes(
+      "update"
+    )
+  ) {
+    routes.push(`
 Router.put(
   "/:id",
-  AuthMiddleware,
-  AllowRoles("instructor", "admin"),
-  UpdateProgress
+  ${middleware}Update${entity}
 );
+`);
+  }
 
+
+  if (
+    normalizedOperations.includes(
+      "delete"
+    )
+  ) {
+    routes.push(`
 Router.delete(
   "/:id",
-  AuthMiddleware,
-  AllowRoles("admin"),
-  DeleteProgress
+  ${middleware}Delete${entity}
 );
+`);
+  }
 
-module.exports = Router;
+
+  /* -------------------------------------------------------
+     Final Route File
+     ------------------------------------------------------- */
+
+  return `const express =
+  require("express");
+
+const {
+  ${imports.join(",\n  ")}
+} =
+  require("../Controllers/${entity}Controller");
+${middlewareImports}
+
+const Router =
+  express.Router();
+
+${routes.join("\n")}
+
+module.exports =
+  Router;
 `;
 };
+
+
+/* =========================================================
+   Exports
+   ========================================================= */
 
 module.exports = {
   GenerateBackendFiles,
   GenerateController,
   GenerateRoute,
+  GetEntityName,
+  NormalizeEntityName,
 };

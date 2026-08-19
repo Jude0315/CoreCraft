@@ -1,4 +1,165 @@
-const GenerateApiService = () => {
+const NormalizeEntityName = (
+  name = ""
+) => {
+  return name
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .replace(
+      /^./,
+      (character) =>
+        character.toUpperCase()
+    );
+};
+
+
+const GenerateApiService = (
+  specification = {}
+) => {
+  const apiModules =
+    Array.isArray(
+      specification.apiModules
+    )
+      ? specification.apiModules
+      : [];
+
+  const hasUserReference =
+    Array.isArray(
+      specification.entities
+    ) &&
+    specification.entities.some(
+      (entity) =>
+        Array.isArray(entity.fields) &&
+        entity.fields.some(
+          (field) =>
+            field.type === "ObjectId" &&
+            NormalizeEntityName(
+              field.ref || ""
+            ) === "User"
+        )
+    );
+
+  const hasUserApiModule =
+    apiModules.some(
+      (module) =>
+        NormalizeEntityName(
+          module.entity ||
+          module.name ||
+          ""
+        ) === "User"
+    );
+
+  const serviceDefinitions =
+    [
+      ...apiModules,
+      ...(hasUserReference &&
+      !hasUserApiModule
+        ? [
+            {
+              name: "User API",
+              entity: "User",
+              operations: ["read"],
+            },
+          ]
+        : []),
+    ]
+      .map((module) => {
+        const entity =
+          NormalizeEntityName(
+            module.entity ||
+            module.name ||
+            ""
+          );
+
+        if (!entity) {
+          return "";
+        }
+
+        const operations =
+          Array.isArray(
+            module.operations
+          )
+            ? module.operations.map(
+                (operation) =>
+                  operation.toLowerCase()
+              )
+            : [];
+
+        const methods = [];
+
+        const route =
+          entity === "User"
+            ? "auth/users"
+            : entity.toLowerCase();
+
+        /*
+          READ
+        */
+        if (
+          operations.includes(
+            "read"
+          )
+        ) {
+          methods.push(`  getAll: () =>
+    API.get("/${route}"),
+
+  getById: (id) =>
+    API.get(\`/${route}/\${id}\`)`);
+        }
+
+        /*
+          CREATE
+        */
+        if (
+          operations.includes(
+            "create"
+          )
+        ) {
+          methods.push(`  create: (data) =>
+    API.post(
+      "/${route}",
+      data
+    )`);
+        }
+
+        /*
+          UPDATE
+        */
+        if (
+          operations.includes(
+            "update"
+          )
+        ) {
+          methods.push(`  update: (id, data) =>
+    API.put(
+      \`/${route}/\${id}\`,
+      data
+    )`);
+        }
+
+        /*
+          DELETE
+        */
+        if (
+          operations.includes(
+            "delete"
+          )
+        ) {
+          methods.push(`  remove: (id) =>
+    API.delete(
+      \`/${route}/\${id}\`
+    )`);
+        }
+
+        if (methods.length === 0) {
+          return "";
+        }
+
+        return `export const ${entity}Api = {
+${methods.join(",\n\n")}
+};`;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+
   return `import axios from "axios";
 
 const API = axios.create({
@@ -24,124 +185,11 @@ API.interceptors.request.use(
   }
 );
 
-export const CourseApi = {
-  getAll: () =>
-    API.get("/course"),
-
-  getById: (id) =>
-    API.get(\`/course/\${id}\`),
-
-  create: (data) =>
-    API.post("/course", data),
-
-  update: (id, data) =>
-    API.put(
-      \`/course/\${id}\`,
-      data
-    ),
-
-  remove: (id) =>
-    API.delete(
-      \`/course/\${id}\`
-    ),
-};
-
-export const LessonApi = {
-  getAll: () =>
-    API.get("/lesson"),
-
-  getById: (id) =>
-    API.get(\`/lesson/\${id}\`),
-
-  create: (data) =>
-    API.post("/lesson", data),
-
-  update: (id, data) =>
-    API.put(
-      \`/lesson/\${id}\`,
-      data
-    ),
-
-  remove: (id) =>
-    API.delete(
-      \`/lesson/\${id}\`
-    ),
-};
-
-export const QuizApi = {
-  getAll: () =>
-    API.get("/quiz"),
-
-  getById: (id) =>
-    API.get(\`/quiz/\${id}\`),
-
-  create: (data) =>
-    API.post("/quiz", data),
-
-  update: (id, data) =>
-    API.put(
-      \`/quiz/\${id}\`,
-      data
-    ),
-
-  remove: (id) =>
-    API.delete(
-      \`/quiz/\${id}\`
-    ),
-};
-
-export const AssignmentApi = {
-  getAll: () =>
-    API.get("/assignment"),
-
-  getById: (id) =>
-    API.get(\`/assignment/\${id}\`),
-
-  create: (data) =>
-    API.post("/assignment", data),
-
-  update: (id, data) =>
-    API.put(
-      \`/assignment/\${id}\`,
-      data
-    ),
-
-  remove: (id) =>
-    API.delete(
-      \`/assignment/\${id}\`
-    ),
-};
-
-export const ProgressApi = {
-  getAll: () =>
-    API.get("/progress"),
-
-  getMine: () =>
-    API.get("/progress/me"),
-
-  getById: (id) =>
-    API.get(\`/progress/\${id}\`),
-
-  create: (data) =>
-    API.post("/progress", data),
-
-  update: (id, data) =>
-    API.put(
-      \`/progress/\${id}\`,
-      data
-    ),
-
-  remove: (id) =>
-    API.delete(
-      \`/progress/\${id}\`
-    ),
-};
+${serviceDefinitions}
 
 
 export default API;
 `;
-
-
 };
 
 const GenerateAuthContext = () => {
@@ -300,6 +348,46 @@ const ProtectedRoute = ({
 
 export default ProtectedRoute;
 `;
+};
+
+const BuildRoleLandingPages = (
+  roles = [],
+  pages = []
+) => {
+  const landingPages = {};
+
+  roles.forEach((role) => {
+    const exclusivePage =
+      pages.find((page) =>
+        page.protected &&
+        page.route &&
+        Array.isArray(page.roles) &&
+        page.roles.length === 1 &&
+        page.roles.includes(role)
+      );
+
+    const sharedPage =
+      pages.find((page) =>
+        page.protected &&
+        page.route &&
+        (
+          !Array.isArray(page.roles) ||
+          page.roles.length === 0 ||
+          page.roles.includes(role)
+        )
+      );
+
+    const selectedPage =
+      exclusivePage ||
+      sharedPage;
+
+    if (selectedPage) {
+      landingPages[role] =
+        selectedPage.route;
+    }
+  });
+
+  return landingPages;
 };
 
 const GenerateThemeCss = (appType = "Application") => {
@@ -467,7 +555,7 @@ a {
 .auth-link a {
   color: var(--accent);
   font-weight: 600;
-}a
+}
 
 .app-navbar {
   min-height: 68px;
@@ -1150,7 +1238,7 @@ a {
   gap: 24px;
 }
 
-.course-form {
+.entity-form {
   display: flex;
   flex-direction: column;
 }
@@ -1320,7 +1408,31 @@ a {
 
 };
 
-const GenerateLoginPage = (appType = "Application") => {
+const GenerateLoginPage = (
+  appName = "Application",
+  roles = [],
+  pages = []
+) => {
+  const roleLandingPages =
+    BuildRoleLandingPages(
+      roles,
+      pages
+    );
+
+  const fallbackPage =
+    pages.find(
+      (page) =>
+        page.protected &&
+        page.route
+    )?.route || "/";
+
+  const landingPageMap =
+    JSON.stringify(
+      roleLandingPages,
+      null,
+      2
+    );
+
   return `import React, {
   useState,
 } from "react";
@@ -1334,8 +1446,10 @@ import {
   useAuth,
 } from "../Context/AuthContext";
 
+
 const LoginPage = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     Login,
@@ -1353,7 +1467,10 @@ const LoginPage = () => {
   const [loading, setLoading] =
     useState(false);
 
-  const HandleSubmit = async (event) => {
+
+  const HandleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
     setError("");
@@ -1365,14 +1482,14 @@ const LoginPage = () => {
         password
       );
 
-      if (
-        user.role === "instructor" ||
-        user.role === "admin"
-      ) {
-        navigate("/instructor-portal");
-      } else {
-        navigate("/dashboard");
-      }
+      const roleLandingPages =
+        ${landingPageMap};
+
+      const destination =
+        roleLandingPages[user.role] ||
+        "${fallbackPage}";
+
+      navigate(destination);
     } catch (error) {
       setError(
         error.response?.data?.message ||
@@ -1385,26 +1502,37 @@ const LoginPage = () => {
 
   return (
     <div className="auth-shell">
+
       <section className="auth-brand">
-        <h1>${appType}</h1>
+
+        <h1>
+          ${appName}
+        </h1>
 
         <p>
           Sign in to continue to your
-          personalized workspace.
+          workspace.
         </p>
+
       </section>
 
+
       <section className="auth-panel">
+
         <form
           className="auth-card"
           onSubmit={HandleSubmit}
         >
-          <h2>Welcome back</h2>
+
+          <h2>
+            Welcome back
+          </h2>
 
           <p>
             Enter your account details
             to continue.
           </p>
+
 
           {error && (
             <div className="form-error">
@@ -1412,8 +1540,12 @@ const LoginPage = () => {
             </div>
           )}
 
+
           <div className="form-group">
-            <label>Email</label>
+
+            <label>
+              Email
+            </label>
 
             <input
               type="email"
@@ -1425,10 +1557,15 @@ const LoginPage = () => {
               }
               required
             />
+
           </div>
 
+
           <div className="form-group">
-            <label>Password</label>
+
+            <label>
+              Password
+            </label>
 
             <input
               type="password"
@@ -1440,7 +1577,9 @@ const LoginPage = () => {
               }
               required
             />
+
           </div>
+
 
           <button
             className="primary-button"
@@ -1451,14 +1590,21 @@ const LoginPage = () => {
               : "Sign in"}
           </button>
 
+
           <div className="auth-link">
+
             No account?{" "}
+
             <Link to="/register">
               Create one
             </Link>
+
           </div>
+
         </form>
+
       </section>
+
     </div>
   );
 };
@@ -1467,7 +1613,40 @@ export default LoginPage;
 `;
 };
 
-const GenerateRegisterPage = (appType = "Application") => {
+const FormatRoleLabel = (role = "") => {
+  return role
+    .replace(/[_-]/g, " ")
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
+    );
+};
+
+
+const GenerateRegisterPage = (
+  appName = "Application",
+  roles = []
+) => {
+  const safeRoles =
+    Array.isArray(roles) &&
+    roles.length > 0
+      ? roles
+      : ["user"];
+
+  const defaultRole =
+    safeRoles[0];
+
+  const roleOptions =
+    safeRoles
+      .map(
+        (role) =>
+          `              <option value="${role}">
+                ${FormatRoleLabel(role)}
+              </option>`
+      )
+      .join("\n");
+
   return `import React, {
   useState,
 } from "react";
@@ -1481,8 +1660,10 @@ import {
   useAuth,
 } from "../Context/AuthContext";
 
+
 const RegisterPage = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     Register,
@@ -1493,7 +1674,7 @@ const RegisterPage = () => {
       name: "",
       email: "",
       password: "",
-      role: "student",
+      role: "${defaultRole}",
     });
 
   const [error, setError] =
@@ -1502,15 +1683,22 @@ const RegisterPage = () => {
   const [loading, setLoading] =
     useState(false);
 
-  const HandleChange = (event) => {
+
+  const HandleChange = (
+    event
+  ) => {
     setForm({
       ...form,
+
       [event.target.name]:
         event.target.value,
     });
   };
 
-  const HandleSubmit = async (event) => {
+
+  const HandleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
     setError("");
@@ -1532,8 +1720,11 @@ const RegisterPage = () => {
 
   return (
     <div className="auth-shell">
+
       <section className="auth-brand">
-        <h1>${appType}</h1>
+        <h1>
+          ${appName}
+        </h1>
 
         <p>
           Create your account and start
@@ -1541,17 +1732,23 @@ const RegisterPage = () => {
         </p>
       </section>
 
+
       <section className="auth-panel">
+
         <form
           className="auth-card"
           onSubmit={HandleSubmit}
         >
-          <h2>Create account</h2>
+
+          <h2>
+            Create account
+          </h2>
 
           <p>
             Set up your profile to get
             started.
           </p>
+
 
           {error && (
             <div className="form-error">
@@ -1559,8 +1756,12 @@ const RegisterPage = () => {
             </div>
           )}
 
+
           <div className="form-group">
-            <label>Name</label>
+
+            <label>
+              Name
+            </label>
 
             <input
               name="name"
@@ -1568,10 +1769,15 @@ const RegisterPage = () => {
               onChange={HandleChange}
               required
             />
+
           </div>
 
+
           <div className="form-group">
-            <label>Email</label>
+
+            <label>
+              Email
+            </label>
 
             <input
               name="email"
@@ -1580,10 +1786,15 @@ const RegisterPage = () => {
               onChange={HandleChange}
               required
             />
+
           </div>
 
+
           <div className="form-group">
-            <label>Password</label>
+
+            <label>
+              Password
+            </label>
 
             <input
               name="password"
@@ -1592,25 +1803,28 @@ const RegisterPage = () => {
               onChange={HandleChange}
               required
             />
+
           </div>
 
+
           <div className="form-group">
-            <label>Account type</label>
+
+            <label>
+              Account type
+            </label>
 
             <select
               name="role"
               value={form.role}
               onChange={HandleChange}
             >
-              <option value="student">
-                Student
-              </option>
 
-              <option value="instructor">
-                Instructor
-              </option>
+${roleOptions}
+
             </select>
+
           </div>
+
 
           <button
             className="primary-button"
@@ -1621,14 +1835,21 @@ const RegisterPage = () => {
               : "Create account"}
           </button>
 
+
           <div className="auth-link">
+
             Already registered?{" "}
+
             <Link to="/login">
               Sign in
             </Link>
+
           </div>
+
         </form>
+
       </section>
+
     </div>
   );
 };
@@ -1639,7 +1860,45 @@ export default RegisterPage;
 
 
 
-const GenerateNavbar = (appType = "Application") => {
+const GenerateNavbar = (
+  appName = "Application",
+  pages = []
+) => {
+  const navigationPages =
+    Array.isArray(pages)
+      ? pages.filter(
+          (page) =>
+            page?.name &&
+            page?.route &&
+            page.type !== "auth"
+        )
+      : [];
+
+  const links =
+    navigationPages
+      .map((page) => {
+        const roles =
+          Array.isArray(page.roles)
+            ? page.roles
+            : [];
+
+        const roleCondition =
+          roles.length > 0
+            ? `user && ${JSON.stringify(
+                roles
+              )}.includes(user.role)`
+            : "user";
+
+        return `
+        {${roleCondition} && (
+          <Link to="${page.route}">
+            ${page.name}
+          </Link>
+        )}
+`;
+      })
+      .join("\n");
+
   return `import React from "react";
 
 import {
@@ -1651,51 +1910,48 @@ import {
   useAuth,
 } from "../Context/AuthContext";
 
+
 const Navbar = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     user,
     Logout,
   } = useAuth();
 
+
   const HandleLogout = () => {
     Logout();
+
     navigate("/login");
   };
 
+
   return (
     <nav className="app-navbar">
+
       <div className="navbar-brand">
+
         <Link to="/">
-          ${appType}
+          ${appName}
         </Link>
+
       </div>
+
 
       <div className="navbar-links">
-        {user && (
-          <>
-            <Link to="/dashboard">
-              Dashboard
-            </Link>
 
-            <Link to="/courses">
-              Courses
-            </Link>
+${links}
 
-            {(user.role === "instructor" ||
-              user.role === "admin") && (
-              <Link to="/instructor-portal">
-                Instructor Portal
-              </Link>
-            )}
-          </>
-        )}
       </div>
 
+
       <div className="navbar-actions">
+
         {!user ? (
           <>
+
             <Link to="/login">
               Login
             </Link>
@@ -1706,12 +1962,21 @@ const Navbar = () => {
             >
               Register
             </Link>
+
           </>
         ) : (
           <>
+
             <span className="navbar-user">
+
               {user.name}
+
+              {user.role
+                ? \` (\${user.role})\`
+                : ""}
+
             </span>
+
 
             <button
               className="logout-button"
@@ -1719,9 +1984,12 @@ const Navbar = () => {
             >
               Logout
             </button>
+
           </>
         )}
+
       </div>
+
     </nav>
   );
 };
@@ -1738,4 +2006,5 @@ module.exports = {
   GenerateLoginPage,
   GenerateRegisterPage,
   GenerateNavbar,
+  BuildRoleLandingPages,
 };

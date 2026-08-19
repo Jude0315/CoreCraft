@@ -27,6 +27,13 @@ const {
 } = require("../Generators/BackendGenerator");
 
 const {
+  GenerateLookupController,
+  GenerateLookupRoutes,
+} = require(
+  "../Generators/LookupGenerator"
+);
+
+const {
   GenerateSchemaFiles,
 } = require("../Generators/SchemaGenerator");
 
@@ -34,6 +41,16 @@ const {
   EnsureDirectoryExists,
   WriteGeneratedFile,
 } = require("../Utils/FileWriter");
+
+const {
+  GenerateDynamicApplicationSpecification,
+} = require("./AiService");
+
+const {
+  NormalizeSpecification,
+} = require(
+  "./SpecificationValidationService"
+);
 
 /*---------------------------------- */
 
@@ -50,10 +67,11 @@ const {
 
 /*------------------------------------ */
 
-const GenerateSpecification = (session) => {
-    
+const GenerateSpecification = async (session) => {
   if (!session) {
-    throw new Error("Requirement session is required");
+    throw new Error(
+      "Requirement session is required"
+    );
   }
 
   if (!session.finalized) {
@@ -62,308 +80,89 @@ const GenerateSpecification = (session) => {
     );
   }
 
-  const features = Array.isArray(session.features)
-    ? session.features
-    : [];
-
-  const requirements = Array.isArray(session.requirements)
-    ? session.requirements
-    : [];
-
-  const entities = DetectEntities(
-    session.appType,
-    features,
-    requirements
-  );
-
-  const pages = DetectPages(
-    session.appType,
-    features,
-    requirements
-  );
-
-  const apiModules = DetectApiModules(
-    session.appType,
-    features,
-    entities
-  );
-
-  return {
-    appType: session.appType,
-    stack: "MERN",
-    entities,
-    pages,
-    apiModules,
-    features,
-    requirements,
-  };
-};
-
-const DetectEntities = (
-  appType,
-  features = [],
-  requirements = []
-) => {
-  const detectedEntities = new Set();
-
-  const combinedText = [
-    appType,
-    ...features,
-    ...requirements,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  detectedEntities.add("User");
-
-  const entityRules = [
-    {
-      keywords: ["course", "courses"],
-      entity: "Course",
-    },
-    {
-      keywords: ["lesson", "lessons", "content"],
-      entity: "Lesson",
-    },
-    {
-      keywords: ["quiz", "quizzes"],
-      entity: "Quiz",
-    },
-    {
-      keywords: ["assignment", "assignments"],
-      entity: "Assignment",
-    },
-    {
-      keywords: ["progress", "tracking"],
-      entity: "Progress",
-    },
-    {
-      keywords: ["certificate", "certificates"],
-      entity: "Certificate",
-    },
-    {
-      keywords: ["payment", "payments"],
-      entity: "Payment",
-    },
-    {
-      keywords: ["student", "students"],
-      entity: "Student",
-    },
-    {
-      keywords: ["instructor", "instructors", "teacher"],
-      entity: "Instructor",
-    },
-    {
-      keywords: ["product", "products"],
-      entity: "Product",
-    },
-    {
-      keywords: ["order", "orders"],
-      entity: "Order",
-    },
-    {
-      keywords: ["cart", "shopping cart"],
-      entity: "Cart",
-    },
-    {
-      keywords: ["category", "categories"],
-      entity: "Category",
-    },
-    {
-      keywords: ["inventory", "stock"],
-      entity: "Inventory",
-    },
-  ];
-
-  entityRules.forEach(({ keywords, entity }) => {
-    const hasMatch = keywords.some((keyword) =>
-      combinedText.includes(keyword)
+  // Ask the AI architecture engine to understand
+  // the user's application dynamically.
+  const rawSpecification =
+    await GenerateDynamicApplicationSpecification(
+      session
     );
 
-    if (hasMatch) {
-      detectedEntities.add(entity);
-    }
-  });
+  if (!rawSpecification) {
+    throw new Error(
+      "Unable to generate application specification"
+    );
+  }
 
-  return Array.from(detectedEntities);
-};
-
-const DetectPages = (
-  appType,
-  features = [],
-  requirements = []
-) => {
-  const detectedPages = new Set();
-
-  const combinedText = [
-    appType,
-    ...features,
-    ...requirements,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  detectedPages.add("Home Page");
-
-  const pageRules = [
-    {
-      keywords: ["login", "authentication"],
-      page: "Login Page",
-    },
-    {
-      keywords: ["register", "registration", "signup"],
-      page: "Registration Page",
-    },
-    {
-      keywords: ["dashboard"],
-      page: "Dashboard",
-    },
-    {
-      keywords: ["course", "courses"],
-      page: "Courses Page",
-    },
-    {
-      keywords: ["course"],
-      page: "Course Details Page",
-    },
-    {
-      keywords: ["quiz", "quizzes"],
-      page: "Quizzes Page",
-    },
-    {
-      keywords: ["assignment", "assignments"],
-      page: "Assignments Page",
-    },
-    {
-      keywords: ["progress", "tracking"],
-      page: "Progress Tracking Page",
-    },
-    {
-      keywords: ["instructor portal", "instructorportal"],
-      page: "Instructor Portal",
-    },
-    {
-      keywords: ["student management"],
-      page: "Student Management Page",
-    },
-    {
-      keywords: ["product", "products"],
-      page: "Products Page",
-    },
-    {
-      keywords: ["cart"],
-      page: "Shopping Cart Page",
-    },
-    {
-      keywords: ["checkout"],
-      page: "Checkout Page",
-    },
-    {
-      keywords: ["order", "orders"],
-      page: "Orders Page",
-    },
-    {
-      keywords: ["admin"],
-      page: "Admin Dashboard",
-    },
-  ];
-
-  pageRules.forEach(({ keywords, page }) => {
-    const hasMatch = keywords.some((keyword) =>
-      combinedText.includes(keyword)
+  const {
+    specification,
+    warnings,
+  } =
+    NormalizeSpecification(
+      rawSpecification
     );
 
-    if (hasMatch) {
-      detectedPages.add(page);
-    }
-  });
-
-  return Array.from(detectedPages);
-};
-
-const DetectApiModules = (
-  appType,
-  features = [],
-  entities = []
-) => {
-  const detectedModules = new Set();
-
-  const combinedText = [
-    appType,
-    ...features,
-    ...entities,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  detectedModules.add("Authentication API");
-
-  const apiRules = [
-    {
-      keywords: ["course"],
-      module: "Course API",
-    },
-    {
-      keywords: ["lesson"],
-      module: "Lesson API",
-    },
-    {
-      keywords: ["quiz"],
-      module: "Quiz API",
-    },
-    {
-      keywords: ["assignment"],
-      module: "Assignment API",
-    },
-    {
-      keywords: ["progress"],
-      module: "Progress API",
-    },
-    {
-      keywords: ["student"],
-      module: "Student Management API",
-    },
-    {
-      keywords: ["instructor"],
-      module: "Instructor API",
-    },
-    {
-      keywords: ["certificate"],
-      module: "Certificate API",
-    },
-    {
-      keywords: ["payment"],
-      module: "Payment API",
-    },
-    {
-      keywords: ["product"],
-      module: "Product API",
-    },
-    {
-      keywords: ["order"],
-      module: "Order API",
-    },
-    {
-      keywords: ["cart"],
-      module: "Cart API",
-    },
-    {
-      keywords: ["inventory"],
-      module: "Inventory API",
-    },
-  ];
-
-  apiRules.forEach(({ keywords, module }) => {
-    const hasMatch = keywords.some((keyword) =>
-      combinedText.includes(keyword)
+  if (warnings.length > 0) {
+    console.log(
+      "\nCoreCraft specification normalization:"
     );
 
-    if (hasMatch) {
-      detectedModules.add(module);
-    }
-  });
+    warnings.forEach(
+      (warning) => {
+        console.log(
+          `- ${warning}`
+        );
+      }
+    );
+  }
 
-  return Array.from(detectedModules);
+  // Basic validation to make sure the AI returned
+  // the minimum structure needed by CoreCraft.
+  if (
+    !Array.isArray(
+      specification.entities
+    )
+  ) {
+    throw new Error(
+      "Generated specification does not contain valid entities"
+    );
+  }
+
+  if (
+    !Array.isArray(
+      specification.pages
+    )
+  ) {
+    throw new Error(
+      "Generated specification does not contain valid pages"
+    );
+  }
+
+  if (
+    !Array.isArray(
+      specification.apiModules
+    )
+  ) {
+    throw new Error(
+      "Generated specification does not contain valid API modules"
+    );
+  }
+
+  specification.stack = "MERN";
+
+  // Preserve the original requirements so the
+  // generated project remains traceable to the
+  // user's requirement session.
+  specification.features =
+    Array.isArray(session.features)
+      ? session.features
+      : [];
+
+  specification.requirements =
+    Array.isArray(session.requirements)
+      ? session.requirements
+      : [];
+
+  return specification;
 };
 
 const CreateSchemaFiles = (
@@ -391,8 +190,13 @@ const CreateSchemaFiles = (
     );
   }
 
+  const appName =
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
+
   const projectFolderName =
-    `${specification.appType || "Application"}-${projectId}`;
+    `${appName}-${projectId}`;
 
   const modelsDirectory = path.join(
     process.cwd(),
@@ -447,8 +251,13 @@ const CreateBackendFiles = (
   const backendFiles =
     GenerateBackendFiles(specification);
 
+  const appName =
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
+
   const projectFolderName =
-    `${specification.appType || "Application"}-${projectId}`;
+    `${appName}-${projectId}`;
 
   const projectServerDirectory = path.join(
     process.cwd(),
@@ -508,12 +317,57 @@ const CreateBackendFiles = (
       }
     );
 
+  const referenceFields =
+    (specification.entities || [])
+      .flatMap(
+        (entity) =>
+          (entity.fields || [])
+            .filter(
+              (field) =>
+                field.type === "ObjectId" &&
+                field.ref
+            )
+      );
+
+  const generatedLookupFiles = [];
+
+  if (
+    referenceFields.length > 0
+  ) {
+    const lookupControllerCode =
+      GenerateLookupController(
+        specification
+      );
+
+    const lookupRoutesCode =
+      GenerateLookupRoutes(
+        specification
+      );
+
+    generatedLookupFiles.push(
+      WriteGeneratedFile(
+        controllersDirectory,
+        "LookupController.js",
+        lookupControllerCode
+      )
+    );
+
+    generatedLookupFiles.push(
+      WriteGeneratedFile(
+        routesDirectory,
+        "LookupRoutes.js",
+        lookupRoutesCode
+      )
+    );
+  }
+
   return {
     projectFolderName,
     controllersDirectory,
     routesDirectory,
     generatedControllers,
     generatedRoutes,
+    generatedLookupFiles,
   };
 };
 
@@ -535,20 +389,47 @@ const CreateFrontendFiles = (
   const frontendFiles =
     GenerateFrontendFiles(specification);
 
-  const projectFolderName =
-    `${specification.appType || "Application"}-${projectId}`;
+  const appName =
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
 
-  const pagesDirectory = path.join(
-    process.cwd(),
-    "..",
-    "Generated-Projects",
-    projectFolderName,
-    "Client",
-    "src",
-    "Pages"
+  const projectFolderName =
+    `${appName}-${projectId}`;
+
+  const clientSrcDirectory =
+    path.join(
+      process.cwd(),
+      "..",
+      "Generated-Projects",
+      projectFolderName,
+      "Client",
+      "src"
+    );
+
+  const pagesDirectory =
+    path.join(
+      clientSrcDirectory,
+      "Pages"
+    );
+
+  const servicesDirectory =
+    path.join(
+      clientSrcDirectory,
+      "Services"
+    );
+
+  EnsureDirectoryExists(
+    pagesDirectory
   );
 
-  EnsureDirectoryExists(pagesDirectory);
+  EnsureDirectoryExists(
+    servicesDirectory
+  );
+
+  /* -----------------------------------------
+     Generate dynamic React pages
+     ----------------------------------------- */
 
   const generatedPages =
     frontendFiles.pageFiles.map(
@@ -561,19 +442,44 @@ const CreateFrontendFiles = (
           );
 
         return {
-          page: pageFile.page,
+          page:
+            pageFile.page,
+
           componentName:
             pageFile.componentName,
-          filename: pageFile.filename,
+
+          filename:
+            pageFile.filename,
+
           filePath,
         };
       }
     );
 
+
+  /* -----------------------------------------
+     Generate dynamic API service
+
+     This belongs to normal frontend
+     generation, NOT authentication.
+     ----------------------------------------- */
+
+  const apiFilePath =
+    WriteGeneratedFile(
+      servicesDirectory,
+      "Api.js",
+      GenerateApiService(
+        specification
+      )
+    );
+
+
   return {
     projectFolderName,
     pagesDirectory,
+    servicesDirectory,
     generatedPages,
+    apiFilePath,
   };
 };
 
@@ -594,7 +500,9 @@ const CreateFullProject = (
   }
 
   const appName =
-    specification.appType || "Application";
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
 
   const projectFolderName =
     `${appName}-${projectId}`;
@@ -603,7 +511,7 @@ const CreateFullProject = (
     process.cwd(),
     "..",
     "Generated-Projects",
-    projectFolderName
+    projectFolderName,
   );
 
   const clientDirectory = path.join(
@@ -689,8 +597,7 @@ WriteGeneratedFile(
   serverSrcDirectory,
   "App.js",
   GenerateServerAppFile(
-    specification.entities || [],
-    specification.features || []
+    specification
   )
 );
 
@@ -719,7 +626,9 @@ WriteGeneratedFile(
 WriteGeneratedFile(
   clientSrcDirectory,
   "main.jsx",
-  GenerateMainJsx()
+  GenerateMainJsx(
+    specification
+  )
 );
 
 // Client App.jsx
@@ -727,8 +636,7 @@ WriteGeneratedFile(
   clientSrcDirectory,
   "App.jsx",
   GenerateAppJsx(
-    specification.pages || [],
-    specification.features || []
+    specification
   )
 );
 
@@ -741,6 +649,66 @@ WriteGeneratedFile(
     authenticationResult,
     frontendAuthResult,
   };
+};
+
+/*--------------------------------------------------------------- */
+const RequiresAuthentication = (
+  specification = {}
+) => {
+  /*
+    Authentication is required when the
+    generated application contains roles,
+    protected pages, or protected APIs.
+
+    This avoids relying on old hardcoded
+    feature names such as "login".
+  */
+
+  const roles =
+    Array.isArray(
+      specification.roles
+    )
+      ? specification.roles
+      : [];
+
+  const pages =
+    Array.isArray(
+      specification.pages
+    )
+      ? specification.pages
+      : [];
+
+  const apiModules =
+    Array.isArray(
+      specification.apiModules
+    )
+      ? specification.apiModules
+      : [];
+
+
+  const hasRoles =
+    roles.length > 0;
+
+
+  const hasProtectedPages =
+    pages.some(
+      (page) =>
+        page?.protected === true
+    );
+
+
+  const hasProtectedApis =
+    apiModules.some(
+      (module) =>
+        module?.protected === true
+    );
+
+
+  return (
+    hasRoles ||
+    hasProtectedPages ||
+    hasProtectedApis
+  );
 };
 
 /*--------------------------------------------------------------- */
@@ -760,35 +728,26 @@ const CreateAuthenticationFiles = (
     );
   }
 
-  const features =
-    specification.features || [];
-
   const hasAuthentication =
-    features.some((feature) => {
-      const normalized =
-        feature.toLowerCase();
-
-      return (
-        normalized.includes("login") ||
-        normalized.includes("auth") ||
-        normalized.includes("register")
-      );
-    });
+    RequiresAuthentication(
+      specification
+    );
 
   if (!hasAuthentication) {
     return {
       generated: false,
       reason:
-        "Authentication feature was not requested",
+        "Authentication is not required for this application",
     };
   }
 
   const appName =
-  specification.appType ||
-  "Application";
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
 
-const projectFolderName =
-  `${appName}-${projectId}`;
+  const projectFolderName =
+    `${appName}-${projectId}`;
 
   const serverSrcDirectory =
     path.join(
@@ -804,6 +763,12 @@ const projectFolderName =
     path.join(
       serverSrcDirectory,
       "Controllers"
+    );
+
+  const modelsDirectory =
+    path.join(
+      serverSrcDirectory,
+      "Models"
     );
 
   const middlewareDirectory =
@@ -823,6 +788,10 @@ const projectFolderName =
   );
 
   EnsureDirectoryExists(
+    modelsDirectory
+  );
+
+  EnsureDirectoryExists(
     middlewareDirectory
   );
 
@@ -831,9 +800,19 @@ const projectFolderName =
   );
 
   const files =
-    GenerateAuthFiles();
+    GenerateAuthFiles(
+      specification
+    );
 
   const generatedFiles = [];
+
+  generatedFiles.push(
+    WriteGeneratedFile(
+      modelsDirectory,
+      files.model.filename,
+      files.model.content
+    )
+  );
 
   generatedFiles.push(
     WriteGeneratedFile(
@@ -888,30 +867,21 @@ const CreateFrontendAuthFiles = (
     );
   }
 
-  const features =
-    specification.features || [];
-
   const hasAuthentication =
-    features.some((feature) => {
-      const normalized =
-        feature.toLowerCase();
-
-      return (
-        normalized.includes("login") ||
-        normalized.includes("auth") ||
-        normalized.includes("register")
-      );
-    });
+    RequiresAuthentication(
+      specification
+    );
 
   if (!hasAuthentication) {
     return {
       generated: false,
       reason:
-        "Authentication feature was not requested",
+        "Authentication is not required for this application",
     };
   }
 
   const appName =
+    specification.applicationName ||
     specification.appType ||
     "Application";
 
@@ -986,14 +956,6 @@ const CreateFrontendAuthFiles = (
 
   generatedFiles.push(
     WriteGeneratedFile(
-      servicesDirectory,
-      "Api.js",
-      GenerateApiService()
-    )
-  );
-
-  generatedFiles.push(
-    WriteGeneratedFile(
       contextDirectory,
       "AuthContext.jsx",
       GenerateAuthContext()
@@ -1020,7 +982,11 @@ const CreateFrontendAuthFiles = (
     WriteGeneratedFile(
       pagesDirectory,
       "LoginPage.jsx",
-      GenerateLoginPage(appName)
+      GenerateLoginPage(
+        appName,
+        specification.roles || [],
+        specification.pages || []
+      )
     )
   );
 
@@ -1028,17 +994,23 @@ const CreateFrontendAuthFiles = (
     WriteGeneratedFile(
       pagesDirectory,
       "RegisterPage.jsx",
-      GenerateRegisterPage(appName)
+      GenerateRegisterPage(
+        appName,
+        specification.roles || []
+      )
     )
   );
 
   generatedFiles.push(
-  WriteGeneratedFile(
-    componentsDirectory,
-    "Navbar.jsx",
-    GenerateNavbar(appName)
-  )
-);
+    WriteGeneratedFile(
+      componentsDirectory,
+      "Navbar.jsx",
+      GenerateNavbar(
+        appName,
+        specification.pages || []
+      )
+    )
+  );
 
   return {
     generated: true,
@@ -1050,13 +1022,11 @@ const CreateFrontendAuthFiles = (
 
 module.exports = {
   GenerateSpecification,
-  DetectEntities,
-  DetectPages,
-  DetectApiModules,
   CreateSchemaFiles,
   CreateBackendFiles,
   CreateFrontendFiles,
   CreateFullProject,
   CreateAuthenticationFiles,
-   CreateFrontendAuthFiles,
+  CreateFrontendAuthFiles,
+  RequiresAuthentication,
 };

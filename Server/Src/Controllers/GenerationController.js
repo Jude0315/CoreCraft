@@ -33,8 +33,11 @@ const CreateGenerationSpecification = async (
       });
     }
 
+    // Dynamic AI-generated architecture
     const specification =
-      GenerateSpecification(session);
+      await GenerateSpecification(
+        session
+      );
 
     session.generationSpecification =
       specification;
@@ -46,21 +49,20 @@ const CreateGenerationSpecification = async (
 
     return res.status(200).json({
       message:
-        "Generation specification created successfully",
-      specification:
-        session.generationSpecification,
+        "Dynamic generation specification created successfully",
+      specification,
       session,
     });
   } catch (error) {
     console.error(
-      "Generation specification error:",
+      "Specification generation error:",
       error
     );
 
     return res.status(500).json({
       message:
         error.message ||
-        "Failed to create generation specification",
+        "Unable to generate application specification",
     });
   }
 };

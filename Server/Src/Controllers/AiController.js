@@ -142,9 +142,16 @@ await Session.save();
 
 const FinalizeRequirements = async (req, res) => {
   try {
-    const { sessionId } = req.params;
+    const { sessionId } =
+      req.params;
 
-    const Session = await RequirementSession.findById(sessionId);
+    const { content } =
+      req.body || {};
+
+    const Session =
+      await RequirementSession.findById(
+        sessionId
+      );
 
     if (!Session) {
       return res.status(404).json({
@@ -152,41 +159,107 @@ const FinalizeRequirements = async (req, res) => {
       });
     }
 
-    if (!Session.appType) {
-      return res.status(400).json({
-        message: "Application type has not been identified",
+    if (content) {
+      Session.messages.push({
+        role: "user",
+        content,
       });
+
+      try {
+        const extracted =
+          await ExtractRequirementsFromMessage(
+            content,
+            Session
+          );
+
+        if (
+          extracted?.featuresToAdd &&
+          Array.isArray(
+            extracted.featuresToAdd
+          )
+        ) {
+          extracted.featuresToAdd.forEach(
+            (feature) => {
+              if (
+                feature &&
+                !Session.features.includes(
+                  feature
+                )
+              ) {
+                Session.features.push(
+                  feature
+                );
+              }
+            }
+          );
+        }
+
+        if (
+          extracted?.requirementsToAdd &&
+          Array.isArray(
+            extracted.requirementsToAdd
+          )
+        ) {
+          extracted.requirementsToAdd.forEach(
+            (requirement) => {
+              if (
+                requirement &&
+                !Session.requirements.includes(
+                  requirement
+                )
+              ) {
+                Session.requirements.push(
+                  requirement
+                );
+              }
+            }
+          );
+        }
+      } catch (extractionError) {
+        console.warn(
+          "Requirement extraction skipped:",
+          extractionError.message
+        );
+      }
     }
 
-    if (Session.features.length === 0) {
-      return res.status(400).json({
-        message: "At least one feature is required before finalization",
-      });
-    }
+    // Create a human-readable summary of what the
+    // user wants before generating the technical
+    // application specification.
+    const Summary =
+      await GenerateRequirementSummary(
+        Session
+      );
 
-    if (Session.requirements.length === 0) {
-      return res.status(400).json({
-        message: "At least one detailed requirement is required before finalization",
-      });
-    }
+    Session.requirementSummary =
+      Summary;
 
-    const Summary = await GenerateRequirementSummary(Session);
+    Session.currentStep =
+      "finalized";
 
-    Session.requirementSummary = Summary;
-    Session.currentStep = "finalized";
     Session.finalized = true;
-    Session.finalizedAt = new Date();
+
+    Session.finalizedAt =
+      new Date();
 
     await Session.save();
 
-    res.json({
-      message: "Requirements finalized successfully",
+    return res.status(200).json({
+      message:
+        "Requirements finalized successfully",
       summary: Summary,
       session: Session,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error(
+      "Requirement finalization error:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        error.message ||
+        "Unable to finalize requirements",
     });
   }
 };
