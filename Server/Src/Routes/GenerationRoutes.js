@@ -6,6 +6,7 @@ const {
     GenerateBackend,
     GenerateFrontend,
      GenerateFullProject,
+     DownloadProject,
 } = require("../Controllers/GenerationController");
 
 const AuthMiddleware = require(
@@ -42,6 +43,12 @@ Router.post(
   "/project/:sessionId",
   AuthMiddleware,
   GenerateFullProject
+);
+
+Router.get(
+  "/download/:sessionId",
+  AuthMiddleware,
+  DownloadProject
 );
 
 module.exports = Router;

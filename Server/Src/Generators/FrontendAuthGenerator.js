@@ -184,10 +184,13 @@ ${methods.join(",\n\n")}
 // Keeping API logic here makes the frontend easier to understand and maintain.
 import axios from "axios";
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5001/api";
+
 const API = axios.create({
   baseURL:
-    import.meta.env.VITE_API_URL ||
-    "http://localhost:5001/api",
+    API_URL,
 });
 
 API.interceptors.request.use(

@@ -2,6 +2,16 @@ const RequirementSession = require(
   "../Models/RequirementSession"
 );
 
+const path = require("path");
+
+const fs = require("fs");
+
+const {
+  CreateProjectZip,
+} = require(
+  "../Services/ZipService"
+);
+
 const {
   GenerateSpecification,
   CreateSchemaFiles,
@@ -342,6 +352,165 @@ const GenerateFullProject = async (
     });
   }
 };
+
+/*---------------------------------------------------------- */
+
+const ResolveGeneratedProject = (
+  session
+) => {
+  const specification =
+    session.generationSpecification ||
+    {};
+
+  const appName =
+    specification.applicationName ||
+    specification.appType ||
+    "Application";
+
+  const projectFolderName =
+    `${appName}-${session.project.toString()}`;
+
+  const generatedProjectsRoot =
+    path.resolve(
+      process.cwd(),
+      "..",
+      "Generated-Projects"
+    );
+
+  const projectPath =
+    path.resolve(
+      generatedProjectsRoot,
+      projectFolderName
+    );
+
+  const relativeProjectPath =
+    path.relative(
+      generatedProjectsRoot,
+      projectPath
+    );
+
+  const isInsideGeneratedProjects =
+    relativeProjectPath &&
+    !relativeProjectPath.startsWith("..") &&
+    !path.isAbsolute(
+      relativeProjectPath
+    );
+
+  if (
+    !isInsideGeneratedProjects
+  ) {
+    throw new Error(
+      "Resolved project path is invalid"
+    );
+  }
+
+  if (
+    !fs.existsSync(
+      projectPath
+    )
+  ) {
+    throw new Error(
+      "Generated project folder was not found. Generate the full project before downloading it."
+    );
+  }
+
+  return {
+    projectName:
+      projectFolderName,
+
+    projectPath,
+  };
+};
+
+
+const DownloadProject = async (
+  req,
+  res
+) => {
+  try {
+    const { sessionId } =
+      req.params;
+
+    const session =
+      await RequirementSession.findById(
+        sessionId
+      );
+
+    if (!session) {
+      return res.status(404).json({
+        message:
+          "Requirement session not found",
+      });
+    }
+
+    if (
+      !session.generationSpecification
+    ) {
+      return res.status(400).json({
+        message:
+          "Generate the project specification before downloading the project",
+      });
+    }
+
+    const {
+      projectPath,
+      projectName,
+    } =
+      ResolveGeneratedProject(
+        session
+      );
+
+    const exportDirectory =
+      path.join(
+        process.cwd(),
+        "..",
+        "Generated-Exports"
+      );
+
+    fs.mkdirSync(
+      exportDirectory,
+      {
+        recursive: true,
+      }
+    );
+
+    const safeProjectName =
+      projectName
+        .replace(
+          /[^a-zA-Z0-9-_ ]/g,
+          ""
+        )
+        .trim() ||
+      "Generated-Project";
+
+    const zipPath =
+      path.join(
+        exportDirectory,
+        `${safeProjectName}.zip`
+      );
+
+    await CreateProjectZip(
+      projectPath,
+      zipPath
+    );
+
+    return res.download(
+      zipPath,
+      `${safeProjectName}.zip`
+    );
+  } catch (error) {
+    console.error(
+      "Project download error:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        error.message ||
+        "Failed to download generated project",
+    });
+  }
+};
 /**----------------------------------------------------------------- */
 
 module.exports = {
@@ -350,4 +519,5 @@ module.exports = {
   GenerateBackend,
   GenerateFrontend,
   GenerateFullProject,
+  DownloadProject,
 };

@@ -57,7 +57,7 @@ const GenerateServerFile = () => {
 
 const app = require("./App");
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(\`Server running on port \${PORT}\`);
@@ -266,45 +266,76 @@ module.exports =
 `;
 };
 
-const GenerateEnvironmentFile = (
-  appName = "Application"
+const GetGeneratedDatabaseName = (
+  specification = {}
 ) => {
-  const databaseName =
-    appName
+  return (
+    String(
+      specification.applicationName ||
+      "generated_app"
+    )
+      .toLowerCase()
       .replace(
-        /[^a-zA-Z0-9]/g,
+        /[^a-z0-9]+/g,
+        "_"
+      )
+      .replace(
+        /^_+|_+$/g,
         ""
       ) ||
-    "Application";
+    "generated_app"
+  );
+};
+
+const GenerateServerEnv = (
+  specification = {}
+) => {
+  const databaseName =
+    GetGeneratedDatabaseName(
+      specification
+    );
 
   return `PORT=5001
-MONGO_URI=mongodb://127.0.0.1:27017/${databaseName}DB
-JWT_SECRET=change_this_secret
+MONGO_URI=mongodb://127.0.0.1:27017/${databaseName}
+JWT_SECRET=change_this_secret_before_production
 `;
 };
 
-const GenerateClientEnvironmentFile = () => {
-  return `VITE_API_URL=http://localhost:5001/api
-`;
-};
+const GenerateServerEnvExample = (
+  specification = {}
+) => {
+  const databaseName =
+    GetGeneratedDatabaseName(
+      specification
+    );
 
-const GenerateEnvExample = () => {
-  return `# Backend server port
-PORT=5001
-
-# Local MongoDB connection
-MONGO_URI=mongodb://127.0.0.1:27017/generated_app
-
-# Replace this value before using the application
+  return `PORT=5001
+MONGO_URI=mongodb://127.0.0.1:27017/${databaseName}
 JWT_SECRET=replace_with_a_secure_secret
 `;
 };
 
+const GenerateClientEnv = () => {
+  return `VITE_API_URL=http://localhost:5001/api
+`;
+};
+
+const GenerateClientEnvExample = () =>
+  GenerateClientEnv();
+
 const GenerateGitIgnore = () => {
   return `node_modules/
+**/node_modules/
+
 .env
+**/.env
+
 dist/
+**/dist/
+
 build/
+**/build/
+
 *.log
 .DS_Store
 `;
@@ -403,11 +434,7 @@ ${fields}`;
 
 ${description}
 
-This project was generated using **CoreCraft**.
-
-CoreCraft creates structured MERN starter applications from application requirements.
-
----
+Generated using **CoreCraft**.
 
 ## Technology Stack
 
@@ -418,182 +445,119 @@ CoreCraft creates structured MERN starter applications from application requirem
 - Mongoose
 - JWT Authentication
 
----
-
 ## Application Roles
 
 ${roleList}
-
----
 
 ## Business Entities
 
 ${entityList}
 
----
-
 ## Generated Pages
 
 ${pageList}
-
----
 
 ## API Modules
 
 ${apiList}
 
----
-
 ## Generated Features
 
 ${featureList}
 
----
-
 ## Project Structure
 
 \`\`\`text
-${applicationName}/
-|
-|-- Client/
-|   |-- public/
-|   |-- src/
-|   |   |-- Components/
-|   |   |-- Context/
-|   |   |-- Layouts/
-|   |   |-- Pages/
-|   |   |-- Routes/
-|   |   |-- Services/
-|   |   \`-- Utils/
-|   \`-- package.json
-|
-|-- Server/
-|   |-- Src/
-|   |   |-- Config/
-|   |   |-- Controllers/
-|   |   |-- Middleware/
-|   |   |-- Models/
-|   |   |-- Routes/
-|   |   \`-- Utils/
-|   |-- .env.example
-|   \`-- package.json
-|
-\`-- README.md
-\`\`\`
+Client/
+  src/
+    Components/
+    Context/
+    Layouts/
+    Pages/
+    Routes/
+    Services/
+    Utils/
 
----
+Server/
+  Src/
+    Config/
+    Controllers/
+    Middleware/
+    Models/
+    Routes/
+    Utils/
+
+README.md
+\`\`\`
 
 ## Authentication
 
-The generated application includes JWT-based authentication.
+The application includes JWT-based authentication and protected routes.
 
-Protected routes require a valid authentication token.
-
-Role-based permissions are generated from the CoreCraft specification.
-
----
+Role-based access rules are generated from the CoreCraft application specification.
 
 ## Backend Setup
 
-Navigate into the backend:
-
 \`\`\`bash
 cd Server
-\`\`\`
-
-Install dependencies:
-
-\`\`\`bash
 npm install
 \`\`\`
 
-Create a local environment file:
-
-\`\`\`text
-.env
-\`\`\`
-
-You can copy the values from:
-
-\`\`\`text
-.env.example
-\`\`\`
-
-Then start the backend:
+The generated \`.env\` file contains local development defaults, so you can run the backend immediately:
 
 \`\`\`bash
 npm run dev
 \`\`\`
 
-The backend normally runs at:
+Default backend address:
 
 \`\`\`text
 http://localhost:5001
 \`\`\`
 
----
-
 ## Frontend Setup
 
-Open another terminal and navigate into the client:
+Open another terminal:
 
 \`\`\`bash
 cd Client
-\`\`\`
-
-Install dependencies:
-
-\`\`\`bash
 npm install
-\`\`\`
-
-Start the React application:
-
-\`\`\`bash
 npm run dev
 \`\`\`
 
-The frontend normally runs at:
+Default frontend address:
 
 \`\`\`text
 http://localhost:5173
 \`\`\`
 
----
+## Generated Capabilities
 
-## Generated Code
+CoreCraft may generate:
 
-CoreCraft generates:
-
-- MongoDB models
-- Express controllers
-- REST API routes
-- JWT authentication
+- database models
+- REST API controllers
+- API routes
+- authentication
 - role-based authorization
-- React pages
-- CRUD forms
+- CRUD interfaces
 - relationship lookups
 - dashboards
 - navigation
-- dynamic styling
-- AI-designed authentication UI
-- student-friendly code comments
+- dynamic UI styling
+- AI-designed authentication interfaces
+- educational source-code comments
 
-The generated source code contains educational comments explaining the purpose of important sections.
+## Development Note
 
----
+This project is generated as a development-ready MERN starter application.
 
-## Development Notes
+Before production use, review security, environment configuration, validation, deployment settings, and application-specific requirements.
 
-This application is generated as a development-ready MERN starter project.
+The included \`.env\` values are intended for local development only.
 
-Before production deployment, review:
+Change \`JWT_SECRET\` and database configuration before deployment.
 
-- environment configuration
-- security settings
-- database configuration
-- validation rules
-- deployment settings
 
 ---
 
@@ -1005,8 +969,31 @@ const GenerateAppJsx = (
      Normalize generated pages
      ----------------------------------------- */
 
+  const isAuthenticationPage = (page) => {
+    const route =
+      String(page?.route || "")
+        .toLowerCase();
+
+    const type =
+      String(page?.type || "")
+        .toLowerCase();
+
+    return (
+      type === "auth" ||
+      route === "/login" ||
+      route === "login" ||
+      route === "/register" ||
+      route === "register"
+    );
+  };
+
   const normalizedPages =
-    pages.map((page) => {
+    pages
+      .filter(
+        (page) =>
+          !isAuthenticationPage(page)
+      )
+      .map((page) => {
       const pageName =
         GetPageName(page);
 
@@ -1061,10 +1048,10 @@ import AppLayout
   from "./Layouts/AppLayout";
 
 import LoginPage
-  from "./Pages/LoginPage";
+  from "./Pages/Login";
 
 import RegisterPage
-  from "./Pages/RegisterPage";
+  from "./Pages/Register";
 `
       : "";
 
@@ -1383,11 +1370,12 @@ module.exports = {
   GenerateClientPackageJson,
   GenerateServerFile,
   GenerateServerAppFile,
-  GenerateEnvironmentFile,
-  GenerateEnvExample,
+  GenerateServerEnv,
+  GenerateServerEnvExample,
   GenerateGitIgnore,
   GenerateReadme,
-  GenerateClientEnvironmentFile,
+  GenerateClientEnv,
+  GenerateClientEnvExample,
   GenerateMainJsx,
   GenerateAppLayout,
   GenerateAppJsx,

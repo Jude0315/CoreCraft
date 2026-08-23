@@ -1,5 +1,6 @@
 
 const path = require("path");
+const fs = require("fs");
 
 const {
   GenerateAuthFiles,
@@ -10,10 +11,12 @@ const {
   GenerateClientPackageJson,
   GenerateServerFile,
   GenerateServerAppFile,
-  GenerateEnvExample,
+  GenerateServerEnv,
+  GenerateServerEnvExample,
   GenerateGitIgnore,
   GenerateReadme,
-  GenerateClientEnvironmentFile,
+  GenerateClientEnv,
+  GenerateClientEnvExample,
   GenerateMainJsx,
   GenerateAppLayout,
   GenerateAppJsx,
@@ -71,6 +74,39 @@ const {
   GenerateLoginPage,
   GenerateRegisterPage,
 } = require("../Generators/FrontendAuthGenerator");
+
+const RemoveGeneratedDirectoryIfExists = (
+  projectRoot,
+  directoryPath
+) => {
+  const relativePath =
+    path.relative(
+      projectRoot,
+      directoryPath
+    );
+
+  const isInsideProject =
+    relativePath &&
+    !relativePath.startsWith("..") &&
+    !path.isAbsolute(
+      relativePath
+    );
+
+  if (
+    isInsideProject &&
+    fs.existsSync(
+      directoryPath
+    )
+  ) {
+    fs.rmSync(
+      directoryPath,
+      {
+        recursive: true,
+        force: true,
+      }
+    );
+  }
+};
 
 
 /*------------------------------------ */
@@ -584,6 +620,14 @@ const CreateFullProject = (
   EnsureDirectoryExists(serverDirectory);
   EnsureDirectoryExists(serverSrcDirectory);
 
+  RemoveGeneratedDirectoryIfExists(
+    projectRoot,
+    path.join(
+      clientSrcDirectory,
+      "Pages"
+    )
+  );
+
   WriteGeneratedFile(
     projectRoot,
     "README.md",
@@ -637,11 +681,22 @@ const frontendAuthResult =
     GenerateServerPackageJson(appName)
   );
 
+  // Server .env
+  WriteGeneratedFile(
+    serverDirectory,
+    ".env",
+    GenerateServerEnv(
+      specification
+    )
+  );
+
   // Server .env.example
   WriteGeneratedFile(
     serverDirectory,
     ".env.example",
-    GenerateEnvExample()
+    GenerateServerEnvExample(
+      specification
+    )
   );
 
   // Server.js
@@ -667,11 +722,18 @@ WriteGeneratedFile(
   GenerateClientPackageJson(appName)
 );
 
+// Client .env
+WriteGeneratedFile(
+  clientDirectory,
+  ".env",
+  GenerateClientEnv()
+);
+
 // Client .env.example
 WriteGeneratedFile(
   clientDirectory,
   ".env.example",
-  GenerateClientEnvironmentFile()
+  GenerateClientEnvExample()
 );
 
 // Client index.html
@@ -1030,7 +1092,7 @@ const CreateFrontendAuthFiles = (
   generatedFiles.push(
     WriteGeneratedFile(
       pagesDirectory,
-      "LoginPage.jsx",
+      "Login.jsx",
       GenerateLoginPage(
         appName,
         specification.roles || [],
@@ -1043,7 +1105,7 @@ const CreateFrontendAuthFiles = (
   generatedFiles.push(
     WriteGeneratedFile(
       pagesDirectory,
-      "RegisterPage.jsx",
+      "Register.jsx",
       GenerateRegisterPage(
         appName,
         specification.roles || [],

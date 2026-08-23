@@ -127,6 +127,27 @@ const RequiresAuthentication = (
 };
 
 
+const IsAuthenticationPage = (
+  page = {}
+) => {
+  const type =
+    String(page.type || "")
+      .toLowerCase();
+
+  const route =
+    String(page.route || "")
+      .toLowerCase();
+
+  return (
+    type === "auth" ||
+    route === "/login" ||
+    route === "login" ||
+    route === "/register" ||
+    route === "register"
+  );
+};
+
+
 const GetInfrastructureUserEntity = (
   specification
 ) => ({
@@ -388,7 +409,14 @@ const GenerateFrontendFiles = (
     "Generated Application";
 
   const pageFiles =
-    pages.map((page) => {
+    pages
+      .filter(
+        (page) =>
+          !IsAuthenticationPage(
+            page
+          )
+      )
+      .map((page) => {
       const pageName =
         typeof page === "string"
           ? page
