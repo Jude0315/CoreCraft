@@ -154,6 +154,25 @@ const EntitySpecificationSchema =
   );
 
 
+const RoleActionSchema =
+  new mongoose.Schema(
+    {
+      role: {
+        type: String,
+        required: true,
+      },
+
+      actions: {
+        type: [String],
+        default: [],
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
 // Describes a generated React page.
 const PageSpecificationSchema =
   new mongoose.Schema(
@@ -201,6 +220,11 @@ const PageSpecificationSchema =
         default: [],
       },
 
+      roleActions: {
+        type: [RoleActionSchema],
+        default: [],
+      },
+
       description: {
         type: String,
         default: "",
@@ -241,6 +265,11 @@ const ApiModuleSpecificationSchema =
         default: [],
       },
 
+      roleActions: {
+        type: [RoleActionSchema],
+        default: [],
+      },
+
       description: {
         type: String,
         default: "",
@@ -264,6 +293,495 @@ const ImportantFileSchema =
       purpose: {
         type: String,
         default: "",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const ColorSpecificationSchema =
+  new mongoose.Schema(
+    {
+      primary: {
+        type: String,
+        default: "#2563eb",
+      },
+
+      primaryText: {
+        type: String,
+        default: "#ffffff",
+      },
+
+      secondary: {
+        type: String,
+        default: "#64748b",
+      },
+
+      background: {
+        type: String,
+        default: "#f8fafc",
+      },
+
+      surface: {
+        type: String,
+        default: "#ffffff",
+      },
+
+      surfaceText: {
+        type: String,
+        default: "#0f172a",
+      },
+
+      text: {
+        type: String,
+        default: "#0f172a",
+      },
+
+      mutedText: {
+        type: String,
+        default: "#64748b",
+      },
+
+      border: {
+        type: String,
+        default: "#e2e8f0",
+      },
+
+      danger: {
+        type: String,
+        default: "#dc2626",
+      },
+
+      success: {
+        type: String,
+        default: "#16a34a",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const SpacingSpecificationSchema =
+  new mongoose.Schema(
+    {
+      xs: {
+        type: String,
+        default: "6px",
+      },
+
+      sm: {
+        type: String,
+        default: "10px",
+      },
+
+      md: {
+        type: String,
+        default: "16px",
+      },
+
+      lg: {
+        type: String,
+        default: "24px",
+      },
+
+      xl: {
+        type: String,
+        default: "32px",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const RadiusSpecificationSchema =
+  new mongoose.Schema(
+    {
+      input: {
+        type: String,
+        default: "10px",
+      },
+
+      card: {
+        type: String,
+        default: "12px",
+      },
+
+      button: {
+        type: String,
+        default: "10px",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const LayoutSpecificationSchema =
+  new mongoose.Schema(
+    {
+      navigation: {
+        type: String,
+        enum: [
+          "sidebar",
+          "topbar",
+          "hybrid",
+        ],
+        default: "sidebar",
+      },
+
+      sidebarWidth: {
+        type: String,
+        default: "250px",
+      },
+
+      headerHeight: {
+        type: String,
+        default: "68px",
+      },
+
+      pageMaxWidth: {
+        type: String,
+        default: "1400px",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const AuthBackgroundSchema =
+  new mongoose.Schema(
+    {
+      type: {
+        type: String,
+        enum: [
+          "solid",
+          "gradient",
+          "radial",
+          "mesh",
+          "pattern",
+        ],
+        default: "gradient",
+      },
+
+      primary: {
+        type: String,
+        default: "#121212",
+      },
+
+      secondary: {
+        type: String,
+        default: "#2e1065",
+      },
+
+      accent: {
+        type: String,
+        default: "#6a0dad",
+      },
+
+      direction: {
+        type: String,
+        default: "135deg",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const AuthPanelSchema =
+  new mongoose.Schema(
+    {
+      style: {
+        type: String,
+        enum: [
+          "solid",
+          "glass",
+          "bordered",
+          "minimal",
+        ],
+        default: "solid",
+      },
+
+      width: {
+        type: String,
+        default: "420px",
+      },
+
+      opacity: {
+        type: Number,
+        default: 1,
+      },
+
+      padding: {
+        type: String,
+        default: "32px",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const AuthBrandingSchema =
+  new mongoose.Schema(
+    {
+      show: {
+        type: Boolean,
+        default: true,
+      },
+
+      position: {
+        type: String,
+        enum: [
+          "left",
+          "right",
+          "top",
+          "none",
+        ],
+        default: "left",
+      },
+
+      showDescription: {
+        type: Boolean,
+        default: true,
+      },
+
+      alignment: {
+        type: String,
+        enum: [
+          "left",
+          "center",
+          "right",
+        ],
+        default: "left",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const AuthDecorationSchema =
+  new mongoose.Schema(
+    {
+      type: {
+        type: String,
+        enum: [
+          "none",
+          "glow",
+          "grid",
+          "orbs",
+          "lines",
+        ],
+        default: "none",
+      },
+
+      intensity: {
+        type: String,
+        enum: [
+          "subtle",
+          "medium",
+          "strong",
+        ],
+        default: "subtle",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const AuthSpecificationSchema =
+  new mongoose.Schema(
+    {
+      formPosition: {
+        type: String,
+        enum: [
+          "left",
+          "right",
+          "center",
+        ],
+        default: "right",
+      },
+
+      contentAlignment: {
+        type: String,
+        enum: [
+          "start",
+          "center",
+          "end",
+        ],
+        default: "center",
+      },
+
+      background: {
+        type: AuthBackgroundSchema,
+        default: () => ({}),
+      },
+
+      panel: {
+        type: AuthPanelSchema,
+        default: () => ({}),
+      },
+
+      branding: {
+        type: AuthBrandingSchema,
+        default: () => ({}),
+      },
+
+      decoration: {
+        type: AuthDecorationSchema,
+        default: () => ({}),
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+
+const UiSpecificationSchema =
+  new mongoose.Schema(
+    {
+      theme: {
+        type: String,
+        enum: [
+          "modern",
+          "minimal",
+          "corporate",
+          "bold",
+          "elegant",
+        ],
+        default: "modern",
+      },
+
+      style: {
+        type: String,
+        enum: [
+          "professional",
+          "clean",
+          "friendly",
+          "technical",
+          "premium",
+        ],
+        default: "professional",
+      },
+
+      colors: {
+        type: ColorSpecificationSchema,
+        default: () => ({}),
+      },
+
+      spacing: {
+        type: SpacingSpecificationSchema,
+        default: () => ({}),
+      },
+
+      radius: {
+        type: RadiusSpecificationSchema,
+        default: () => ({}),
+      },
+
+      layout: {
+        type: LayoutSpecificationSchema,
+        default: () => ({}),
+      },
+
+      auth: {
+        type: AuthSpecificationSchema,
+        default: () => ({}),
+      },
+
+      cardShadow: {
+        type: String,
+        default:
+          "0 10px 30px rgba(15, 23, 42, 0.08)",
+      },
+
+      fontStyle: {
+        type: String,
+        enum: [
+          "modern",
+          "classic",
+          "technical",
+          "elegant",
+        ],
+        default: "modern",
+      },
+
+      headingWeight: {
+        type: Number,
+        default: 700,
+      },
+
+      bodyWeight: {
+        type: Number,
+        default: 400,
+      },
+
+      cardStyle: {
+        type: String,
+        enum: [
+          "flat",
+          "bordered",
+          "elevated",
+        ],
+        default: "elevated",
+      },
+
+      buttonStyle: {
+        type: String,
+        enum: [
+          "square",
+          "soft",
+          "rounded",
+          "pill",
+        ],
+        default: "rounded",
+      },
+
+      tableStyle: {
+        type: String,
+        enum: [
+          "minimal",
+          "clean",
+          "striped",
+          "bordered",
+        ],
+        default: "clean",
+      },
+
+      formStyle: {
+        type: String,
+        enum: [
+          "stacked",
+          "compact",
+          "two-column",
+        ],
+        default: "stacked",
+      },
+
+      visualDensity: {
+        type: String,
+        enum: [
+          "compact",
+          "comfortable",
+          "spacious",
+        ],
+        default: "comfortable",
       },
     },
     {
@@ -330,6 +848,11 @@ const GenerationSpecificationSchema =
       requirements: {
         type: [String],
         default: [],
+      },
+
+      ui: {
+        type: UiSpecificationSchema,
+        default: () => ({}),
       },
 
       documentation: {

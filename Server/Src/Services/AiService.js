@@ -380,6 +380,28 @@ the role restriction using referenceFilter.
 
 Do not hardcode domain-specific entity or role names.
 
+When an ObjectId field references User and the requirements identify
+a specific role that should receive, own, manage, review, approve,
+or be assigned to that record, generate a referenceFilter restricting
+the User lookup to that role.
+
+Do not leave referenceFilter null when the required role can be
+determined from the requirements.
+
+Example:
+If tasks are assigned to team members:
+
+{
+  "name": "assignedTo",
+  "type": "ObjectId",
+  "ref": "User",
+  "referenceFilter": {
+    "field": "role",
+    "operator": "equals",
+    "value": "team member"
+  }
+}
+
 For ObjectId relationship fields, include displayFields.
 
 displayFields must contain one or more safe, human-readable fields
@@ -492,10 +514,103 @@ Example:
     "create",
     "edit",
     "delete"
+  ],
+  "roleActions": [
+    {
+      "role": "doctor",
+      "actions": [
+        "view",
+        "edit"
+      ]
+    },
+    {
+      "role": "receptionist",
+      "actions": [
+        "view",
+        "create",
+        "edit"
+      ]
+    },
+    {
+      "role": "admin",
+      "actions": [
+        "view",
+        "create",
+        "edit",
+        "delete"
+      ]
+    }
   ]
 }
 
 Do NOT generate unnecessary pages simply because an entity exists.
+
+Use roleActions whenever different roles have different permissions
+on the same page or API module.
+
+roles defines which roles may access the page or module.
+
+actions defines the complete set of actions supported by the page
+or module.
+
+roleActions defines the subset of actions allowed for each role.
+
+Every roleActions.role must exist in roles.
+
+Every roleActions.actions value must exist in actions.
+
+Do not give every role full CRUD access unless the user requirements
+explicitly allow it.
+
+IMPORTANT ACTION VOCABULARY:
+
+For pages, actions may only use:
+"view", "create", "edit", "delete"
+
+Never use "read" or "update" inside page.actions or page.roleActions.
+
+For API modules, operations and roleActions may only use:
+"read", "create", "update", "delete"
+
+Never use "view" or "edit" inside API module operations or API roleActions.
+
+Mapping:
+page "view" = API "read"
+page "edit" = API "update"
+
+The page actions and API operations must preserve capabilities
+explicitly requested by the user.
+
+If a role must create a record, the corresponding page must support
+"create" and the API must support "create".
+
+If a role must update a record, the page uses "edit" and the API uses
+"update".
+
+Example:
+
+Project managers may create, view, edit, and delete tasks.
+Team members may only view and edit tasks.
+
+Then generate:
+
+roles:
+["project manager", "team member"]
+
+actions:
+["view", "create", "edit"]
+
+roleActions:
+[
+  {
+    "role": "project manager",
+    "actions": ["view", "create", "edit"]
+  },
+  {
+    "role": "team member",
+    "actions": ["view", "edit"]
+  }
+]
 
 
 ==================================================
@@ -527,6 +642,32 @@ Example:
     "doctor",
     "receptionist",
     "admin"
+  ],
+  "roleActions": [
+    {
+      "role": "doctor",
+      "actions": [
+        "read",
+        "update"
+      ]
+    },
+    {
+      "role": "receptionist",
+      "actions": [
+        "create",
+        "read",
+        "update"
+      ]
+    },
+    {
+      "role": "admin",
+      "actions": [
+        "create",
+        "read",
+        "update",
+        "delete"
+      ]
+    }
   ]
 }
 
@@ -683,6 +824,239 @@ Avoid:
 
 
 ==================================================
+11. UI DESIGN SPECIFICATION RULES
+==================================================
+
+Generate a complete "ui" object that describes the application's
+visual design system.
+
+The UI specification must be derived from the user's requirements.
+Do not apply fixed visual rules based on a particular industry,
+domain, entity name, role, or example application.
+
+If the user explicitly requests visual preferences such as:
+- light or dark appearance
+- specific colors
+- bold, minimal, elegant, technical, friendly, or professional style
+- sidebar, topbar, or hybrid navigation
+- compact or spacious layouts
+- rounded or square controls
+
+preserve those preferences.
+
+If the user provides no visual requirements, infer a coherent,
+professional design suitable for the application's expected users
+and usage patterns.
+
+The AI is responsible for choosing concrete design values.
+The generator will validate and safely implement those values.
+
+COLORS
+
+All values must be valid hexadecimal colors.
+
+colors.primary
+- primary interactive/accent color
+
+colors.primaryText
+- readable text placed on primary-colored surfaces
+
+colors.secondary
+- secondary UI color
+
+colors.background
+- overall page background
+
+colors.surface
+- cards, panels, forms and navigation surfaces
+
+colors.surfaceText
+- readable text inside cards, panels, forms and navigation surfaces
+
+colors.text
+- main readable text on the application background
+
+colors.mutedText
+- descriptions and secondary text
+
+colors.border
+- borders and separators
+
+colors.danger
+- destructive or error state color
+
+colors.success
+- success or confirmation state color
+
+Generate colors as a coherent theme, not as independent values.
+
+Always ensure readable visual contrast between:
+- background and text
+- surface and surfaceText
+- primary and primaryText
+- inputs and their text
+- buttons and their labels
+
+For dark themes, do not assume every text color should be light.
+If a light surface/card is used inside a dark theme, generate a dark
+surfaceText color.
+
+For light themes, generate suitable dark text colors.
+
+The generated palette must remain visually readable across
+authentication pages, cards, tables, forms, navigation, buttons,
+alerts, and dashboards.
+
+SPACING
+
+Generate CSS-compatible pixel values for:
+
+spacing.xs
+spacing.sm
+spacing.md
+spacing.lg
+spacing.xl
+
+Spacing values should increase progressively.
+
+Example:
+"6px", "10px", "16px", "24px", "32px"
+
+Do not use negative values.
+
+RADIUS
+
+Generate CSS-compatible pixel values for:
+
+radius.input
+radius.card
+radius.button
+
+Choose values consistent with the requested visual style.
+
+LAYOUT
+
+layout.navigation must be one of:
+- sidebar
+- topbar
+- hybrid
+
+Generate:
+layout.sidebarWidth
+layout.headerHeight
+layout.pageMaxWidth
+
+These must be valid CSS size values.
+
+Examples:
+"240px"
+"68px"
+"1360px"
+"100%"
+
+TYPOGRAPHY
+
+fontStyle must be one of:
+- modern
+- classic
+- technical
+- elegant
+
+headingWeight must be a number between 500 and 900.
+
+bodyWeight must be a number between 300 and 600.
+
+COMPONENT STYLE VALUES
+
+cardStyle:
+- flat
+- bordered
+- elevated
+
+buttonStyle:
+- square
+- soft
+- rounded
+- pill
+
+tableStyle:
+- minimal
+- clean
+- striped
+- bordered
+
+formStyle:
+- stacked
+- compact
+- two-column
+
+visualDensity:
+- compact
+- comfortable
+- spacious
+
+AUTHENTICATION DESIGN
+
+Design the authentication experience as a composition rather than
+selecting a fixed login template.
+
+Use the auth properties to make deliberate visual decisions
+appropriate to the application and the user's requested style.
+
+You may vary:
+- form position
+- content alignment
+- background type and colors
+- panel style and size
+- branding placement
+- whether description/branding is shown
+- decorative treatment
+
+Different applications should be capable of producing substantially
+different authentication experiences.
+
+Do not always use the same values.
+
+For technical or modern interfaces, you may use dark gradients,
+mesh backgrounds, glass panels, grids, glows, or asymmetrical
+composition.
+
+For simpler professional applications, you may use clean solid
+backgrounds, centered branding, bordered panels, or minimal
+decoration.
+
+For friendly or educational applications, you may use softer colors,
+gradients, rounded composition, and more prominent branding.
+
+The authentication design must remain readable and coherent with the
+main UI color specification.
+
+Do not generate raw HTML, JSX, or CSS.
+Only generate the structured auth design specification.
+
+CARD SHADOW
+
+cardShadow must be a valid CSS box-shadow value.
+
+Use "none" when the selected card style does not require elevation.
+
+DESIGN CONSISTENCY
+
+All UI values must form one coherent visual system.
+
+Do not generate CSS code.
+Do not generate React components.
+Do not generate HTML.
+
+Only return structured design decisions in the "ui" object.
+
+Do not hardcode design decisions for example domains such as
+veterinary systems, LMS platforms, construction systems,
+e-commerce applications, healthcare systems, or any other
+specific test domain.
+
+
+==================================================
 APPLICATION INFORMATION
 ==================================================
 
@@ -729,6 +1103,90 @@ Use this exact structure:
     "string"
   ],
 
+  "ui": {
+    "theme": "modern",
+    "style": "professional",
+
+    "colors": {
+      "primary": "valid hex color",
+      "primaryText": "valid hex color",
+      "secondary": "valid hex color",
+      "background": "valid hex color",
+      "surface": "valid hex color",
+      "surfaceText": "valid hex color",
+      "text": "valid hex color",
+      "mutedText": "valid hex color",
+      "border": "valid hex color",
+      "danger": "valid hex color",
+      "success": "valid hex color"
+    },
+
+    "spacing": {
+      "xs": "6px",
+      "sm": "10px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px"
+    },
+
+    "radius": {
+      "input": "10px",
+      "card": "12px",
+      "button": "10px"
+    },
+
+    "layout": {
+      "navigation": "sidebar",
+      "sidebarWidth": "250px",
+      "headerHeight": "68px",
+      "pageMaxWidth": "1400px"
+    },
+
+    "auth": {
+      "formPosition": "right",
+      "contentAlignment": "center",
+
+      "background": {
+        "type": "mesh",
+        "primary": "#121212",
+        "secondary": "#2e1065",
+        "accent": "#6a0dad",
+        "direction": "135deg"
+      },
+
+      "panel": {
+        "style": "glass",
+        "width": "430px",
+        "opacity": 0.92,
+        "padding": "36px"
+      },
+
+      "branding": {
+        "show": true,
+        "position": "left",
+        "showDescription": true,
+        "alignment": "left"
+      },
+
+      "decoration": {
+        "type": "glow",
+        "intensity": "medium"
+      }
+    },
+
+    "cardShadow": "0 10px 30px rgba(15, 23, 42, 0.08)",
+
+    "fontStyle": "modern",
+    "headingWeight": 700,
+    "bodyWeight": 400,
+
+    "cardStyle": "elevated",
+    "buttonStyle": "rounded",
+    "tableStyle": "clean",
+    "formStyle": "stacked",
+    "visualDensity": "comfortable"
+  },
+
   "entities": [
     {
       "name": "string",
@@ -762,6 +1220,12 @@ Use this exact structure:
       "protected": true,
       "roles": [],
       "actions": [],
+      "roleActions": [
+        {
+          "role": "string",
+          "actions": []
+        }
+      ],
 
       "description": "short explanation of the purpose of this page"
     }
@@ -774,6 +1238,12 @@ Use this exact structure:
       "operations": [],
       "protected": true,
       "roles": [],
+      "roleActions": [
+        {
+          "role": "string",
+          "actions": []
+        }
+      ],
 
       "description": "short explanation of what this API module manages"
     }

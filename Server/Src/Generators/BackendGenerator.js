@@ -37,6 +37,43 @@ const NormalizeEntityName = (name = "") => {
 };
 
 
+const GenerateSectionComment = (
+  lines = []
+) => {
+  return lines
+    .map(
+      (line) =>
+        `// ${line}`
+    )
+    .join("\n");
+};
+
+
+const GetControllerComment = (
+  operation,
+  entityName
+) => {
+  const comments = {
+    read:
+      `Retrieves ${entityName} records from MongoDB and returns them to the frontend.`,
+
+    create:
+      `Creates a new ${entityName} record using data received from the request body.`,
+
+    update:
+      `Updates an existing ${entityName} record using the ID provided in the request URL.`,
+
+    delete:
+      `Deletes the selected ${entityName} record from MongoDB.`,
+  };
+
+  return (
+    comments[operation] ||
+    `Handles a ${entityName} API operation.`
+  );
+};
+
+
 /* =========================================================
    Helper: Get Entity Name
 
@@ -88,6 +125,39 @@ const FindApiModule = (
         module.entity
       ) === entityName
   );
+};
+
+
+const GetPopulateStatements = (
+  entity
+) => {
+  return (
+    entity?.fields || []
+  )
+    .filter(
+      (field) =>
+        field.type ===
+          "ObjectId" &&
+        field.ref
+    )
+    .map((field) => {
+      const selectFields =
+        Array.isArray(
+          field.displayFields
+        ) &&
+        field.displayFields.length > 0
+          ? field.displayFields.join(" ")
+          : "";
+
+      return `
+        .populate({
+          path:
+            "${field.name}",
+          select:
+            "${selectFields}"
+        })`;
+    })
+    .join("");
 };
 
 
@@ -160,7 +230,8 @@ const GenerateBackendFiles = (
       content:
         GenerateController(
           entityName,
-          operations
+          operations,
+          entity
         ),
     });
 
@@ -194,11 +265,17 @@ const GenerateBackendFiles = (
 
 const GenerateController = (
   entity,
-  operations = []
+  operations = [],
+  entitySpecification = null
 ) => {
   const normalizedOperations =
     operations.map((operation) =>
       operation.toLowerCase()
+    );
+
+  const populateStatements =
+    GetPopulateStatements(
+      entitySpecification
     );
 
   const functions = [];
@@ -215,6 +292,10 @@ const GenerateController = (
     )
   ) {
     functions.push(`
+// ${GetControllerComment(
+  "create",
+  entity
+)}
 const Create${entity} = async (req, res) => {
   try {
     const item =
@@ -231,6 +312,7 @@ const Create${entity} = async (req, res) => {
         data: item,
       });
   } catch (error) {
+    // Unexpected errors are returned with a useful message for the frontend.
     return res
       .status(500)
       .json({
@@ -254,13 +336,22 @@ const Create${entity} = async (req, res) => {
   if (
     normalizedOperations.includes(
       "read"
+    ) ||
+    normalizedOperations.includes(
+      "view"
     )
   ) {
     functions.push(`
+// ${GetControllerComment(
+  "read",
+  entity
+)}
+// Related reference fields are populated so users see readable values instead of database IDs.
 const GetAll${entity}s = async (req, res) => {
   try {
     const items =
-      await ${entity}.find();
+      await ${entity}
+        .find()${populateStatements};
 
     return res
       .status(200)
@@ -272,6 +363,7 @@ const GetAll${entity}s = async (req, res) => {
           items,
       });
   } catch (error) {
+    // Unexpected errors are returned with a useful message for the frontend.
     return res
       .status(500)
       .json({
@@ -282,12 +374,18 @@ const GetAll${entity}s = async (req, res) => {
 };
 
 
+// ${GetControllerComment(
+  "read",
+  entity
+)}
+// Related reference fields are populated so users see readable values instead of database IDs.
 const Get${entity}ById = async (req, res) => {
   try {
     const item =
-      await ${entity}.findById(
-        req.params.id
-      );
+      await ${entity}
+        .findById(
+          req.params.id
+        )${populateStatements};
 
     if (!item) {
       return res
@@ -305,6 +403,7 @@ const Get${entity}ById = async (req, res) => {
           item,
       });
   } catch (error) {
+    // Unexpected errors are returned with a useful message for the frontend.
     return res
       .status(500)
       .json({
@@ -335,6 +434,10 @@ const Get${entity}ById = async (req, res) => {
     )
   ) {
     functions.push(`
+// ${GetControllerComment(
+  "update",
+  entity
+)}
 const Update${entity} = async (req, res) => {
   try {
     const item =
@@ -366,6 +469,7 @@ const Update${entity} = async (req, res) => {
           item,
       });
   } catch (error) {
+    // Unexpected errors are returned with a useful message for the frontend.
     return res
       .status(500)
       .json({
@@ -392,6 +496,10 @@ const Update${entity} = async (req, res) => {
     )
   ) {
     functions.push(`
+// ${GetControllerComment(
+  "delete",
+  entity
+)}
 const Delete${entity} = async (req, res) => {
   try {
     const item =
@@ -415,6 +523,7 @@ const Delete${entity} = async (req, res) => {
           "${entity} deleted successfully",
       });
   } catch (error) {
+    // Unexpected errors are returned with a useful message for the frontend.
     return res
       .status(500)
       .json({
@@ -451,8 +560,65 @@ module.exports = {
    Generate Route Middleware
    ========================================================= */
 
+const GetRolesForOperation = (
+  apiModule = {},
+  operation = ""
+) => {
+  const roleActions =
+    Array.isArray(
+      apiModule?.roleActions
+    )
+      ? apiModule.roleActions
+      : [];
+
+  if (
+    roleActions.length === 0
+  ) {
+    return (
+      apiModule?.roles || []
+    );
+  }
+
+  const operationAliases =
+    operation === "read"
+      ? [
+          "read",
+          "view",
+        ]
+      : operation === "update"
+        ? [
+            "update",
+            "edit",
+          ]
+      : [
+          operation,
+        ];
+
+  return roleActions
+    .filter((entry) =>
+      (entry.actions || [])
+        .some((action) =>
+          operationAliases.includes(
+            String(action)
+              .toLowerCase()
+          )
+        )
+    )
+    .map(
+      (entry) =>
+        entry.role
+    )
+    .filter(
+      (role, index, roles) =>
+        roles.indexOf(role) ===
+        index
+    );
+};
+
+
 const GenerateMiddleware = (
-  apiModule
+  apiModule,
+  roles = []
 ) => {
   if (!apiModule) {
     return "";
@@ -461,15 +627,21 @@ const GenerateMiddleware = (
   const isProtected =
     apiModule.protected === true;
 
-  const roles =
+  const hasRoleActions =
     Array.isArray(
-      apiModule.roles
-    )
-      ? apiModule.roles
-      : [];
+      apiModule.roleActions
+    ) &&
+    apiModule.roleActions.length > 0;
 
   if (!isProtected) {
     return "";
+  }
+
+  if (
+    hasRoleActions &&
+    roles.length === 0
+  ) {
+    return `AuthMiddleware, AllowRoles("__no_allowed_roles__"), `;
   }
 
   /*
@@ -518,12 +690,43 @@ const GenerateRoute = (
   const protectedRoute =
     apiModule?.protected === true;
 
-  const roles =
+  const createRoles =
+    GetRolesForOperation(
+      apiModule,
+      "create"
+    );
+
+  const readRoles =
+    GetRolesForOperation(
+      apiModule,
+      "read"
+    );
+
+  const updateRoles =
+    GetRolesForOperation(
+      apiModule,
+      "update"
+    );
+
+  const deleteRoles =
+    GetRolesForOperation(
+      apiModule,
+      "delete"
+    );
+
+  const routeRoles =
+    [
+      ...createRoles,
+      ...readRoles,
+      ...updateRoles,
+      ...deleteRoles,
+    ];
+
+  const hasRoleActions =
     Array.isArray(
-      apiModule?.roles
-    )
-      ? apiModule.roles
-      : [];
+      apiModule?.roleActions
+    ) &&
+    apiModule.roleActions.length > 0;
 
   const imports = [];
 
@@ -545,6 +748,9 @@ const GenerateRoute = (
   if (
     normalizedOperations.includes(
       "read"
+    ) ||
+    normalizedOperations.includes(
+      "view"
     )
   ) {
     imports.push(
@@ -589,7 +795,10 @@ const AuthMiddleware =
   require("../Middleware/AuthMiddleware");
 `;
 
-    if (roles.length > 0) {
+    if (
+      routeRoles.length > 0 ||
+      hasRoleActions
+    ) {
       middlewareImports += `
 const AllowRoles =
   require("../Middleware/RoleMiddleware");
@@ -602,10 +811,38 @@ const AllowRoles =
      Middleware Expression
      ------------------------------------------------------- */
 
-  const middleware =
+  const createMiddleware =
     GenerateMiddleware(
-      apiModule
+      apiModule,
+      createRoles
     );
+
+  const readMiddleware =
+    GenerateMiddleware(
+      apiModule,
+      readRoles
+    );
+
+  const updateMiddleware =
+    GenerateMiddleware(
+      apiModule,
+      updateRoles
+    );
+
+  const deleteMiddleware =
+    GenerateMiddleware(
+      apiModule,
+      deleteRoles
+    );
+
+  const protectedOperationComment =
+    protectedRoute
+      ? `${GenerateSectionComment([
+          "The JWT middleware confirms that the request comes from a logged-in user.",
+          "AllowRoles then checks whether that user's role can perform this operation.",
+        ])}
+`
+      : "";
 
 
   /* -------------------------------------------------------
@@ -621,9 +858,10 @@ const AllowRoles =
     )
   ) {
     routes.push(`
+${protectedOperationComment}
 Router.post(
   "/",
-  ${middleware}Create${entity}
+  ${createMiddleware}Create${entity}
 );
 `);
   }
@@ -632,17 +870,22 @@ Router.post(
   if (
     normalizedOperations.includes(
       "read"
+    ) ||
+    normalizedOperations.includes(
+      "view"
     )
   ) {
     routes.push(`
+${protectedOperationComment}
 Router.get(
   "/",
-  ${middleware}GetAll${entity}s
+  ${readMiddleware}GetAll${entity}s
 );
 
+${protectedOperationComment}
 Router.get(
   "/:id",
-  ${middleware}Get${entity}ById
+  ${readMiddleware}Get${entity}ById
 );
 `);
   }
@@ -654,9 +897,10 @@ Router.get(
     )
   ) {
     routes.push(`
+${protectedOperationComment}
 Router.put(
   "/:id",
-  ${middleware}Update${entity}
+  ${updateMiddleware}Update${entity}
 );
 `);
   }
@@ -668,9 +912,10 @@ Router.put(
     )
   ) {
     routes.push(`
+${protectedOperationComment}
 Router.delete(
   "/:id",
-  ${middleware}Delete${entity}
+  ${deleteMiddleware}Delete${entity}
 );
 `);
   }
@@ -689,6 +934,10 @@ const {
   require("../Controllers/${entity}Controller");
 ${middlewareImports}
 
+${GenerateSectionComment([
+  `This router defines the REST API endpoints for ${entity}.`,
+  "Authentication runs first, followed by role-based authorization when required.",
+])}
 const Router =
   express.Router();
 
@@ -708,6 +957,10 @@ module.exports = {
   GenerateBackendFiles,
   GenerateController,
   GenerateRoute,
+  GenerateSectionComment,
+  GetControllerComment,
+  GetRolesForOperation,
+  GetPopulateStatements,
   GetEntityName,
   NormalizeEntityName,
 };

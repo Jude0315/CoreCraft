@@ -112,6 +112,126 @@ const GetAvailableEntityNames = (
 };
 
 
+const RequiresAuthentication = (
+  specification = {}
+) => {
+  return (
+    (specification.roles || []).length > 0 ||
+    (specification.pages || []).some(
+      (page) => page?.protected
+    ) ||
+    (specification.apiModules || []).some(
+      (module) => module?.protected
+    )
+  );
+};
+
+
+const GetInfrastructureUserEntity = (
+  specification
+) => ({
+    name: "User",
+
+    description:
+      "Application user managed through CoreCraft authentication infrastructure.",
+
+    fields: [
+      {
+        name: "name",
+        type: "String",
+        required: true,
+        unique: false,
+        defaultValue: null,
+        ref: "",
+        referenceFilter: null,
+        displayFields: [],
+        enumValues: [],
+        description:
+          "The user's name.",
+      },
+
+      {
+        name: "email",
+        type: "String",
+        required: true,
+        unique: true,
+        defaultValue: null,
+        ref: "",
+        referenceFilter: null,
+        displayFields: [],
+        enumValues: [],
+        description:
+          "The user's email address.",
+      },
+
+      {
+        name: "password",
+        type: "String",
+        required: true,
+        unique: false,
+        defaultValue: null,
+        ref: "",
+        referenceFilter: null,
+        displayFields: [],
+        enumValues: [],
+        description:
+          "The user's password.",
+      },
+
+      {
+        name: "role",
+        type: "String",
+        required: true,
+        unique: false,
+        defaultValue: null,
+        ref: "",
+        referenceFilter: null,
+        displayFields: [],
+        enumValues:
+          specification.roles || [],
+        description:
+          "The user's application role.",
+      },
+    ],
+  });
+
+
+const GetPageEntity = (
+  specification,
+  page
+) => {
+  if (!page?.entity) {
+    return null;
+  }
+
+  const normalizedName =
+    NormalizeEntityName(
+      page.entity
+    ).toLowerCase();
+
+  if (
+    normalizedName === "user" &&
+    RequiresAuthentication(
+      specification
+    )
+  ) {
+    return GetInfrastructureUserEntity(
+      specification
+    );
+  }
+
+  return (
+    specification.entities || []
+  ).find(
+    (entity) =>
+      NormalizeEntityName(
+        entity.name
+      ).toLowerCase() ===
+      normalizedName
+  ) || null;
+};
+
+
 const GetReferenceOptionVariable = (
   field
 ) => {
@@ -147,6 +267,101 @@ const BuildLookupPath = (
 };
 
 
+const GetDashboardSources = (
+  specification,
+  page
+) => {
+  const pageRoles =
+    Array.isArray(page?.roles)
+      ? page.roles
+      : [];
+
+  return (
+    specification.apiModules || []
+  )
+    .filter((module) => {
+      const canRead =
+        (module.operations || [])
+          .some(
+            (operation) =>
+              [
+                "read",
+                "view",
+              ].includes(
+                String(
+                  operation
+                ).toLowerCase()
+              )
+          );
+
+      if (!canRead) {
+        return false;
+      }
+
+      const moduleRoles =
+        Array.isArray(
+          module.roles
+        )
+          ? module.roles
+          : [];
+
+      if (
+        pageRoles.length === 0 ||
+        moduleRoles.length === 0
+      ) {
+        return true;
+      }
+
+      return pageRoles.some(
+        (role) =>
+          moduleRoles.includes(
+            role
+          )
+      );
+    })
+    .filter(
+      (module) =>
+        module.entity
+    );
+};
+
+
+const GenerateTableCell = (
+  field
+) => {
+  return `                <td>
+                  {GetDisplayValue(
+                    item.${field.name},
+                    "${field.type}",
+                    ${JSON.stringify(
+                      field.displayFields || []
+                    )}
+                  )}
+                </td>`;
+};
+
+
+const GenerateEditFormFields = (
+  entity
+) => {
+  return (
+    entity.fields || []
+  )
+    .filter(
+      (field) =>
+        field.name !== "_id"
+    )
+    .map(
+      (field) => `      ${field.name}:
+        NormalizeFormValue(
+          item.${field.name},
+          "${field.type}"
+        )`
+    )
+    .join(",\n");
+};
+
+
 /* =========================================================
    Generate All Frontend Pages
    ========================================================= */
@@ -167,13 +382,6 @@ const GenerateFrontendFiles = (
       ? specification.pages
       : [];
 
-  const entities =
-    Array.isArray(
-      specification.entities
-    )
-      ? specification.entities
-      : [];
-
   const applicationName =
     specification.applicationName ||
     specification.appType ||
@@ -192,9 +400,9 @@ const GenerateFrontendFiles = (
         );
 
       const entity =
-        FindEntity(
-          page?.entity,
-          entities
+        GetPageEntity(
+          specification,
+          page
         );
 
       return {
@@ -239,10 +447,13 @@ const GeneratePageComponent = (
     page?.name ||
     componentName;
 
+  const hasEntity =
+    Boolean(entity);
+
   const entityName =
-    entity?.name ||
-    page?.entity ||
-    "";
+    hasEntity
+      ? entity.name
+      : "";
 
   const fields =
     Array.isArray(
@@ -265,46 +476,36 @@ const GeneratePageComponent = (
     page?.description ||
     `Manage ${displayName.toLowerCase()} in ${applicationName}.`;
 
-  const apiName =
-    entityName
-      ? `${NormalizeEntityName(
-          entityName
-        )}Api`
-      : "";
-
-  const availableEntityNames =
-    GetAvailableEntityNames(
-      specification
+  if (
+    page?.type === "dashboard"
+  ) {
+    return GenerateDashboardPage(
+      specification,
+      page,
+      componentName,
+      applicationName
     );
+  }
 
-  const referenceFields =
-    GetReferenceFields(entity)
-      .filter((field) =>
-        availableEntityNames.has(
-          NormalizeEntityName(
-            field.ref
-          )
-        )
-      );
 
-  const apiImports = [
+  /* -------------------------------------------------------
+     If page does not represent a generated entity,
+     generate simple informational page.
+     ------------------------------------------------------- */
+
+  if (!hasEntity) {
+    return GenerateSimplePage(
+      componentName,
+      displayName,
+      description,
+      applicationName
+    );
+  }
+
+  const apiName =
     `${NormalizeEntityName(
       entityName
-    )}Api`,
-  ];
-
-  const uniqueApiImports = [
-    ...new Set(apiImports),
-  ];
-
-  const apiImportStatement = `
-import ${
-  referenceFields.length > 0
-    ? "API, "
-    : ""
-}{
-  ${uniqueApiImports.join(",\n  ")}
-} from "../Services/Api";`;
+    )}Api`;
 
   const canView =
     actions.includes("view") ||
@@ -321,21 +522,56 @@ import ${
   const canDelete =
     actions.includes("delete");
 
+  const needsForm =
+    canCreate ||
+    canEdit;
 
-  /* -------------------------------------------------------
-     If page does not represent an entity,
-     generate simple informational page.
-     ------------------------------------------------------- */
+  const usesRuntimePermissions =
+    canCreate ||
+    canEdit ||
+    canDelete;
 
-  if (!entityName) {
-    return GenerateSimplePage(
-      componentName,
-      displayName,
-      description,
-      applicationName
+  const usesAuthPermissions =
+    usesRuntimePermissions &&
+    RequiresAuthentication(
+      specification
     );
-  }
 
+  const availableEntityNames =
+    GetAvailableEntityNames(
+      specification
+    );
+
+  const referenceFields =
+    needsForm
+      ? GetReferenceFields(entity)
+          .filter((field) =>
+            availableEntityNames.has(
+              NormalizeEntityName(
+                field.ref
+              )
+            )
+          )
+      : [];
+
+  const apiImportStatement =
+    referenceFields.length > 0
+      ? `
+import API, {
+  ${apiName}
+} from "../Services/Api";`
+      : `
+import {
+  ${apiName}
+} from "../Services/Api";`;
+
+  const authImportStatement =
+    usesAuthPermissions
+      ? `
+import {
+  useAuth,
+} from "../Context/AuthContext";`
+      : "";
 
   /* -------------------------------------------------------
      Generate form state from entity fields
@@ -388,7 +624,9 @@ import ${
       .map((field) =>
         GenerateFormField(
           field,
-          referenceFields
+          referenceFields,
+          entity,
+          canEdit
         )
       )
       .join("\n");
@@ -429,6 +667,8 @@ import ${
         );
 
         return `
+    // Loads valid options for the ${field.name} relationship field.
+    // Any referenceFilter from the generated specification is enforced by the backend lookup API.
     try {
       const response =
         await API.get(
@@ -469,6 +709,223 @@ ${referenceLoaders}
       ? `    LoadReferenceData();`
       : "";
 
+  const authStateCode =
+    usesAuthPermissions
+      ? `
+  const {
+    user,
+  } = useAuth();
+`
+      : usesRuntimePermissions
+        ? `
+  const user = null;
+`
+        : "";
+
+  const permissionHelpersCode =
+    usesRuntimePermissions
+      ? `
+
+  const pageActions =
+    ${JSON.stringify(
+      page?.actions || []
+    )};
+
+  const roleActions =
+    ${JSON.stringify(
+      page?.roleActions || []
+    )};
+
+
+  const CanPerformAction = (
+    role,
+    action,
+    roleActions,
+    fallbackActions
+  ) => {
+    if (
+      !Array.isArray(roleActions) ||
+      roleActions.length === 0
+    ) {
+      return (
+        fallbackActions ||
+        []
+      )
+        .map((item) =>
+          String(item)
+            .toLowerCase()
+        )
+        .includes(action);
+    }
+
+    const permission =
+      roleActions.find(
+        (entry) =>
+          entry.role === role
+      );
+
+    return Boolean(
+      permission?.actions
+        ?.map((item) =>
+          String(item)
+            .toLowerCase()
+        )
+        .includes(action)
+    );
+  };
+
+
+  // Checks whether the logged-in user's role can create records on this page.
+  const canCreate =
+    CanPerformAction(
+      user?.role,
+      "create",
+      roleActions,
+      pageActions
+    );
+
+  // Checks whether the logged-in user's role can edit records on this page.
+  const canEdit =
+    CanPerformAction(
+      user?.role,
+      "edit",
+      roleActions,
+      pageActions
+    ) ||
+    CanPerformAction(
+      user?.role,
+      "update",
+      roleActions,
+      pageActions
+    );
+
+  // Checks whether the logged-in user's role can delete records on this page.
+  const canDelete =
+    CanPerformAction(
+      user?.role,
+      "delete",
+      roleActions,
+      pageActions
+    );
+`
+      : "";
+
+  const feedbackHelpersCode = `
+
+  const GetErrorMessage = (
+    error,
+    fallbackMessage
+  ) => {
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      fallbackMessage
+    );
+  };
+
+
+  const GetSuccessMessage = (
+    action
+  ) => {
+    switch (action) {
+      case "create":
+        return "Created successfully.";
+
+      case "update":
+        return "Updated successfully.";
+
+      case "delete":
+        return "Deleted successfully.";
+
+      default:
+        return "Operation completed successfully.";
+    }
+  };
+`;
+
+  const formValidationCode =
+    canCreate || canEdit
+      ? `
+
+  const formFields =
+    ${JSON.stringify(
+      fields.filter(
+        (field) =>
+          field.name !== "_id"
+      )
+    )};
+
+
+  const ValidateForm = (
+    form,
+    fields,
+    editingId = null
+  ) => {
+    const errors = [];
+
+    for (const field of fields) {
+      const value =
+        form[field.name];
+
+      const isPasswordOnEdit =
+        editingId &&
+        field.name === "password";
+
+      if (
+        field.required &&
+        !isPasswordOnEdit &&
+        (
+          value === "" ||
+          value === null ||
+          value === undefined
+        )
+      ) {
+        errors.push(
+          \`\${field.name} is required.\`
+        );
+
+        continue;
+      }
+
+      if (
+        field.type === "Number" &&
+        value !== "" &&
+        value !== null &&
+        value !== undefined &&
+        Number.isNaN(
+          Number(value)
+        )
+      ) {
+        errors.push(
+          \`\${field.name} must be a valid number.\`
+        );
+      }
+
+      if (
+        field.type === "Date" &&
+        value
+      ) {
+        const date =
+          new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
+          errors.push(
+            \`\${field.name} must be a valid date.\`
+          );
+        }
+      }
+    }
+
+    return errors;
+  };
+`
+      : "";
+
 
   /* -------------------------------------------------------
      Generate table headings
@@ -476,7 +933,6 @@ ${referenceLoaders}
 
   const tableHeaders =
     fields
-      .slice(0, 5)
       .map(
         (field) =>
           `              <th>${FormatLabel(
@@ -492,20 +948,18 @@ ${referenceLoaders}
 
   const tableCells =
     fields
-      .slice(0, 5)
       .map(
         (field) =>
-          `                <td>
-                  {FormatValue(
-                    item.${field.name}
-                  )}
-                </td>`
+          GenerateTableCell(
+            field
+          )
       )
       .join("\n");
 
   const listState =
     canView
       ? `
+  // Stores the records loaded from the backend API.
   const [items, setItems] =
     useState([]);
 
@@ -535,9 +989,11 @@ ${referenceLoaders}
      Load records
      ------------------------------------------------------- */
 
+  // Loads the existing records when the page opens.
   const LoadItems = async () => {
     try {
       setLoading(true);
+      setError("");
 
       const response =
         await ${apiName}.getAll();
@@ -546,9 +1002,13 @@ ${referenceLoaders}
         response.data.data || []
       );
     } catch (error) {
+      console.error(error);
+
       setError(
-        error.response?.data?.message ||
-        "Unable to load ${displayName}"
+        GetErrorMessage(
+          error,
+          "Unable to load records."
+        )
       );
     } finally {
       setLoading(false);
@@ -581,7 +1041,9 @@ ${referenceLoaders}
         );
 
         setSuccess(
-          "${entityName} updated successfully"
+          GetSuccessMessage(
+            "update"
+          )
         );
       } else {
         await ${apiName}.create(
@@ -589,7 +1051,9 @@ ${referenceLoaders}
         );
 
         setSuccess(
-          "${entityName} created successfully"
+          GetSuccessMessage(
+            "create"
+          )
         );
       }`;
   } else if (canEdit) {
@@ -601,7 +1065,9 @@ ${referenceLoaders}
         );
 
         setSuccess(
-          "${entityName} updated successfully"
+          GetSuccessMessage(
+            "update"
+          )
         );
       }`;
   } else if (canCreate) {
@@ -611,24 +1077,104 @@ ${referenceLoaders}
       );
 
       setSuccess(
-        "${entityName} created successfully"
+        GetSuccessMessage(
+          "create"
+        )
       );`;
   }
 
   const editFormMapping =
-    fields
-      .filter(
-        (field) =>
-          field.name !== "_id"
-      )
-      .map(
-        (field) =>
-          `      ${field.name}:
-        item.${field.name}?._id ||
-        item.${field.name} ||
-        "",`
-      )
-      .join("\n");
+    GenerateEditFormFields(
+      entity
+    );
+
+  const normalizeFormValueCode =
+    canEdit
+      ? `
+
+  const NormalizeFormValue = (
+    value,
+    type
+  ) => {
+    if (
+      value === null ||
+      value === undefined
+    ) {
+      return "";
+    }
+
+    if (
+      type === "ObjectId"
+    ) {
+      if (
+        typeof value === "object"
+      ) {
+        return (
+          value._id ||
+          ""
+        );
+      }
+
+      return value;
+    }
+
+    if (
+      type === "Date"
+    ) {
+      const date =
+        new Date(value);
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return "";
+      }
+
+      const offset =
+        date.getTimezoneOffset();
+
+      const localDate =
+        new Date(
+          date.getTime() -
+          offset * 60 * 1000
+        );
+
+      return localDate
+        .toISOString()
+        .slice(
+          0,
+          16
+        );
+    }
+
+    if (
+      type === "Boolean"
+    ) {
+      return Boolean(value);
+    }
+
+    return value;
+  };
+`
+      : "";
+
+  const cancelEditCode =
+    canEdit
+      ? `
+
+  const HandleCancelEdit = () => {
+    setEditingId(
+      null
+    );
+
+    setForm(
+      initialForm
+    );
+  };
+`
+      : "";
 
   const editHandlerCode =
     canEdit
@@ -638,6 +1184,7 @@ ${referenceLoaders}
      Edit
      ------------------------------------------------------- */
 
+  // Loads the selected record into the form so the user can edit it.
   const HandleEdit = (
     item
   ) => {
@@ -663,6 +1210,7 @@ ${editFormMapping}
      Delete
      ------------------------------------------------------- */
 
+  // Sends a delete request for the selected record and refreshes the list afterwards.
   const HandleDelete = async (
     id
   ) => {
@@ -676,19 +1224,27 @@ ${editFormMapping}
     }
 
     try {
+      setError("");
+
       await ${apiName}.remove(
         id
       );
 
       setSuccess(
-        "${entityName} deleted successfully"
+        GetSuccessMessage(
+          "delete"
+        )
       );
 
 ${reloadItemsCode}
     } catch (error) {
+      console.error(error);
+
       setError(
-        error.response?.data?.message ||
-        "Unable to delete ${entityName}"
+        GetErrorMessage(
+          error,
+          "Unable to delete record."
+        )
       );
     }
   };
@@ -703,8 +1259,10 @@ ${reloadItemsCode}
      Display helper
      ------------------------------------------------------- */
 
-  const FormatValue = (
-    value
+  const GetDisplayValue = (
+    value,
+    type,
+    displayFields = []
   ) => {
     if (
       value === null ||
@@ -715,29 +1273,156 @@ ${reloadItemsCode}
     }
 
     if (
-      typeof value === "object"
+      type === "ObjectId"
     ) {
+      if (
+        typeof value !== "object"
+      ) {
+        return String(value);
+      }
+
+      for (
+        const field
+        of displayFields
+      ) {
+        if (
+          value[field] !==
+            undefined &&
+          value[field] !==
+            null
+        ) {
+          const displayValue =
+            value[field];
+
+          const shouldFormatDate =
+            String(field)
+              .toLowerCase()
+              .includes("date") ||
+            String(field)
+              .toLowerCase()
+              .includes("time");
+
+          if (shouldFormatDate) {
+            const date =
+              new Date(
+                displayValue
+              );
+
+            if (
+              !Number.isNaN(
+                date.getTime()
+              )
+            ) {
+              return date
+                .toLocaleString();
+            }
+          }
+
+          return String(
+            displayValue
+          );
+        }
+      }
+
       return (
-        value.label ||
         value.name ||
         value.title ||
         value._id ||
-        JSON.stringify(value)
+        "-"
       );
     }
 
     if (
-      typeof value === "boolean"
+      type === "Date"
+    ) {
+      const date =
+        new Date(value);
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return String(value);
+      }
+
+      return date.toLocaleString();
+    }
+
+    if (
+      type === "Boolean"
     ) {
       return value
         ? "Yes"
         : "No";
     }
 
+    if (
+      Array.isArray(value)
+    ) {
+      return value.join(", ");
+    }
+
     return String(value);
   };
 `
       : "";
+
+  const validationEditingArgument =
+    canEdit
+      ? "editingId"
+      : "null";
+
+  let permissionGuardCode = "";
+
+  if (
+    canCreate &&
+    canEdit
+  ) {
+    permissionGuardCode = `
+    if (
+      editingId &&
+      !canEdit
+    ) {
+      setError(
+        "You do not have permission to update this record."
+      );
+
+      return;
+    }
+
+    if (
+      !editingId &&
+      !canCreate
+    ) {
+      setError(
+        "You do not have permission to create this record."
+      );
+
+      return;
+    }
+`;
+  } else if (canCreate) {
+    permissionGuardCode = `
+    if (!canCreate) {
+      setError(
+        "You do not have permission to create this record."
+      );
+
+      return;
+    }
+`;
+  } else if (canEdit) {
+    permissionGuardCode = `
+    if (!canEdit) {
+      setError(
+        "You do not have permission to update this record."
+      );
+
+      return;
+    }
+`;
+  }
 
   const formSupportCode =
     canCreate || canEdit
@@ -748,9 +1433,9 @@ ${reloadItemsCode}
      ------------------------------------------------------- */
 
   const ResetForm = () => {
-    setForm({
-${initialFormFields}
-    });
+    setForm(
+      initialForm
+    );
 
 ${resetEditingCode}
   };
@@ -760,6 +1445,7 @@ ${resetEditingCode}
      Clean payload before saving
      ------------------------------------------------------- */
 
+  // Builds a clean request payload before sending form data to the backend.
   const BuildPayload = () => {
     const payload = {
       ...form,
@@ -791,7 +1477,27 @@ ${resetEditingCode}
     setError("");
     setSuccess("");
 
+    const validationErrors =
+      ValidateForm(
+        form,
+        formFields,
+        ${validationEditingArgument}
+      );
+
+    if (
+      validationErrors.length > 0
+    ) {
+      setError(
+        validationErrors[0]
+      );
+
+      return;
+    }
+
+${permissionGuardCode}
+
     try {
+      // Builds a clean request payload before sending form data to the backend.
       const payload =
         BuildPayload();
 
@@ -801,9 +1507,13 @@ ${submitActionCode}
 
 ${reloadItemsCode}
     } catch (error) {
+      console.error(error);
+
       setError(
-        error.response?.data?.message ||
-        "Unable to save ${entityName}"
+        GetErrorMessage(
+          error,
+          "Unable to save record."
+        )
       );
     }
   };
@@ -832,13 +1542,21 @@ ${reloadItemsCode}
               <button
                 type="button"
                 className="secondary-button"
-                onClick={ResetForm}
+                onClick={HandleCancelEdit}
               >
                 Cancel
               </button>
             )}
 `
       : "";
+
+  const formRenderCondition =
+    canCreate &&
+    canEdit
+      ? "canCreate || (canEdit && editingId)"
+      : canCreate
+        ? "canCreate"
+        : "canEdit && editingId";
 
 
   /* -------------------------------------------------------
@@ -849,6 +1567,8 @@ ${reloadItemsCode}
   useEffect,
   useState,
 } from "react";
+
+${authImportStatement}
 
 ${apiImportStatement}
 
@@ -864,12 +1584,25 @@ ${listState}
 
 ${editingState}
 
-  const [form, setForm] =
-    useState({
+  const initialForm = {
 ${initialFormFields}
-    });
+  };
+
+  // Stores the values currently entered in the create or edit form.
+  const [form, setForm] =
+    useState(
+      initialForm
+    );
+
+${authStateCode}
 
 ${referenceState}
+
+${permissionHelpersCode}
+
+${feedbackHelpersCode}
+
+${formValidationCode}
 
 ${loadItemsCode}
 
@@ -896,18 +1629,24 @@ ${referenceDataCall}
       checked,
     } = event.target;
 
-    setForm({
-      ...form,
+    setForm(
+      (previous) => ({
+        ...previous,
 
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
-    });
+        [name]:
+          type === "checkbox"
+            ? checked
+            : value,
+      })
+    );
   };
 
 
 ${formSupportCode}
+
+${normalizeFormValueCode}
+
+${cancelEditCode}
 
 ${editHandlerCode}
 
@@ -955,38 +1694,40 @@ ${formatValueCode}
 ${
   canCreate || canEdit
     ? `
-      <section className="content-card">
+      {(${formRenderCondition}) && (
+        <section className="content-card">
 
-        <div className="card-heading">
-          <h2>
-            ${formTitle}
-          </h2>
-        </div>
+          <div className="card-heading">
+            <h2>
+              ${formTitle}
+            </h2>
+          </div>
 
 
-        <form
-          className="entity-form"
-          onSubmit={HandleSubmit}
-        >
+          <form
+            className="entity-form"
+            onSubmit={HandleSubmit}
+          >
 
 ${formFields}
 
-          <div className="form-action-row">
+            <div className="form-action-row">
 
-            <button
-              className="primary-button action-button"
-              type="submit"
-            >
-              ${submitButtonText}
-            </button>
+              <button
+                className="primary-button action-button"
+                type="submit"
+              >
+                ${submitButtonText}
+              </button>
 
 ${cancelButton}
 
-          </div>
+            </div>
 
-        </form>
+          </form>
 
-      </section>
+        </section>
+      )}
 `
     : ""
 }
@@ -1032,9 +1773,11 @@ ${tableHeaders}
 
 ${
   canEdit || canDelete
-    ? `                  <th>
-                    Actions
-                  </th>`
+    ? `                  {(canEdit || canDelete) && (
+                    <th>
+                      Actions
+                    </th>
+                  )}`
     : ""
 }
 
@@ -1056,41 +1799,47 @@ ${tableCells}
 
 ${
   canEdit || canDelete
-    ? `                      <td>
+    ? `                      {(canEdit || canDelete) && (
+                        <td>
 
-                        <div className="row-actions">
+                          <div className="row-actions">
 
 ${
   canEdit
-    ? `                          <button
-                            className="secondary-button"
-                            onClick={() =>
-                              HandleEdit(item)
-                            }
-                          >
-                            Edit
-                          </button>`
+    ? `                            {canEdit && (
+                              <button
+                                className="secondary-button"
+                                onClick={() =>
+                                  HandleEdit(item)
+                                }
+                              >
+                                Edit
+                              </button>
+                            )}`
     : ""
 }
 
 ${
   canDelete
-    ? `                          <button
-                            className="danger-button"
-                            onClick={() =>
-                              HandleDelete(
-                                item._id
-                              )
-                            }
-                          >
-                            Delete
-                          </button>`
+    ? `                            {canDelete && (
+                              <button
+                                className="danger-button"
+                                onClick={() =>
+                                  HandleDelete(
+                                    item._id
+                                  )
+                                }
+                              >
+                                Delete
+                              </button>
+                            )}`
     : ""
 }
 
-                        </div>
+                          </div>
 
-                      </td>`
+                        </td>
+                      )}`
     : ""
 }
 
@@ -1122,13 +1871,13 @@ export default ${componentName};
 };
 
 
-/* =========================================================
-   Generate Form Field
-   ========================================================= */
-
-const GenerateFormField = (
+const GenerateInputControl = (
   field,
-  referenceFields = []
+  formState,
+  setFormState,
+  lookupStateName = "",
+  entity = null,
+  canEdit = false
 ) => {
   const fieldName =
     field.name;
@@ -1138,13 +1887,87 @@ const GenerateFormField = (
       fieldName
     );
 
-  const required =
+  const isPasswordField =
+    field.name === "password" &&
+    NormalizeEntityName(
+      entity?.name || ""
+    ).toLowerCase() === "user";
+
+  const requiredAttribute =
     field.required
-      ? "required"
+      ? isPasswordField &&
+        canEdit
+        ? "required={!editingId}"
+        : "required"
       : "";
 
   const description =
     field.description || "";
+
+  const inputType =
+    field.name === "password"
+      ? "password"
+      : field.type === "Number"
+        ? "number"
+        : field.type === "Date"
+          ? "datetime-local"
+          : "text";
+
+
+  if (
+    field.type === "ObjectId" &&
+    lookupStateName
+  ) {
+    return `
+          <div className="form-group">
+
+            <label htmlFor="${fieldName}">
+              ${label}
+            </label>
+
+            <select
+              id="${fieldName}"
+              name="${fieldName}"
+              value={
+                ${formState}.${fieldName} ||
+                ""
+              }
+              onChange={
+                HandleChange
+              }
+              ${requiredAttribute}
+            >
+
+              <option value="">
+                Select ${label}
+              </option>
+
+              {${lookupStateName}.map(
+                (item) => (
+                  <option
+                    key={item._id}
+                    value={item._id}
+                  >
+                    {item.label}
+                  </option>
+                )
+              )}
+
+            </select>
+
+${
+  description
+    ? `            <small>
+              ${EscapeText(
+                description
+              )}
+            </small>`
+    : ""
+}
+
+          </div>
+`;
+  }
 
 
   /* -------------------------------------------------------
@@ -1161,10 +1984,10 @@ const GenerateFormField = (
 
               <input
                 type="checkbox"
-            name="${fieldName}"
-            checked={
-              Boolean(
-                    form.${fieldName}
+                name="${fieldName}"
+                checked={
+                  Boolean(
+                    ${formState}.${fieldName}
                   )
                 }
                 onChange={
@@ -1202,12 +2025,13 @@ const GenerateFormField = (
               id="${fieldName}"
               name="${fieldName}"
               value={
-                form.${fieldName}
+                ${formState}.${fieldName} ||
+                ""
               }
               onChange={
                 HandleChange
               }
-              ${required}
+              ${requiredAttribute}
             >
 
               <option value="">
@@ -1240,141 +2064,6 @@ ${
   }
 
 
-  /* -------------------------------------------------------
-     Date
-     ------------------------------------------------------- */
-
-  if (
-    field.type === "Date"
-  ) {
-    return `
-          <div className="form-group">
-
-            <label htmlFor="${fieldName}">
-              ${label}
-            </label>
-
-            <input
-              id="${fieldName}"
-              type="datetime-local"
-              name="${fieldName}"
-              value={
-                form.${fieldName}
-              }
-              onChange={
-                HandleChange
-              }
-              ${required}
-            />
-
-          </div>
-`;
-  }
-
-
-  /* -------------------------------------------------------
-     Number
-     ------------------------------------------------------- */
-
-  if (
-    field.type === "Number"
-  ) {
-    return `
-          <div className="form-group">
-
-            <label>
-              ${label}
-            </label>
-
-            <input
-              type="number"
-              name="${fieldName}"
-              value={
-                form.${fieldName}
-              }
-              onChange={
-                HandleChange
-              }
-              ${required}
-            />
-
-          </div>
-`;
-  }
-
-
-  /* -------------------------------------------------------
-     ObjectId relation
-     ------------------------------------------------------- */
-
-  if (
-    field.type === "ObjectId" &&
-    field.ref &&
-    referenceFields.some(
-      (referenceField) =>
-        referenceField.name === field.name &&
-        referenceField.ref === field.ref
-    )
-  ) {
-    const variableName =
-      LowerFirst(
-        NormalizeEntityName(
-          field.name
-        )
-      );
-
-    return `
-          <div className="form-group">
-
-            <label htmlFor="${fieldName}">
-              ${label}
-            </label>
-
-            <select
-              id="${fieldName}"
-              name="${fieldName}"
-              value={
-                form.${fieldName}
-              }
-              onChange={
-                HandleChange
-              }
-              ${required}
-            >
-
-              <option value="">
-                Select ${FormatLabel(
-                  field.name
-                )}
-              </option>
-
-              {${variableName}Options.map(
-                (item) => (
-                  <option
-                    key={item._id}
-                    value={item._id}
-                    >
-                    {item.label}
-                  </option>
-                )
-              )}
-
-            </select>
-
-${
-  description
-    ? `            <small>
-              ${EscapeText(
-                description
-              )}
-            </small>`
-    : ""
-}
-
-          </div>
-`;
-  }
-
   if (
     field.type === "ObjectId"
   ) {
@@ -1388,7 +2077,8 @@ ${
             <input
               name="${fieldName}"
               value={
-                form.${fieldName}
+                ${formState}.${fieldName} ||
+                ""
               }
               onChange={
                 HandleChange
@@ -1398,7 +2088,7 @@ ${
                   ? `${field.ref} ID`
                   : "Reference ID"
               }"
-              ${required}
+              ${requiredAttribute}
             />
 
 ${
@@ -1417,7 +2107,7 @@ ${
 
 
   /* -------------------------------------------------------
-     Default String / Mixed
+     String / Number / Date / Mixed
      ------------------------------------------------------- */
 
   return `
@@ -1428,14 +2118,17 @@ ${
             </label>
 
             <input
+              type="${inputType}"
+              id="${fieldName}"
               name="${fieldName}"
               value={
-                form.${fieldName}
+                ${formState}.${fieldName} ||
+                ""
               }
               onChange={
                 HandleChange
               }
-              ${required}
+              ${requiredAttribute}
             />
 
 ${
@@ -1449,6 +2142,279 @@ ${
 }
 
           </div>
+`;
+};
+
+
+/* =========================================================
+   Generate Form Field
+   ========================================================= */
+
+const GenerateFormField = (
+  field,
+  referenceFields = [],
+  entity = null,
+  canEdit = false
+) => {
+  const lookupField =
+    referenceFields.find(
+      (referenceField) =>
+        referenceField.name ===
+          field.name &&
+        referenceField.ref ===
+          field.ref
+    );
+
+  const lookupStateName =
+    lookupField
+      ? GetReferenceOptionVariable(
+          field
+        )
+      : "";
+
+  return GenerateInputControl(
+    field,
+    "form",
+    "setForm",
+    lookupStateName,
+    entity,
+    canEdit
+  );
+};
+
+
+/* =========================================================
+   Dashboard Page
+   ========================================================= */
+
+const GenerateDashboardPage = (
+  specification,
+  page,
+  componentName,
+  applicationName
+) => {
+  const displayName =
+    page?.name ||
+    componentName;
+
+  const description =
+    page?.description ||
+    `Review key activity for ${applicationName}.`;
+
+  const sources =
+    GetDashboardSources(
+      specification,
+      page
+    );
+
+  const uniqueSources =
+    [
+      ...new Map(
+        sources.map((source) => [
+          NormalizeEntityName(
+            source.entity
+          ),
+          source,
+        ])
+      ).values(),
+    ];
+
+  const imports =
+    uniqueSources.map((source) => {
+      const entityName =
+        NormalizeEntityName(
+          source.entity
+        );
+
+      return `${entityName}Api`;
+    });
+
+  const uniqueImports =
+    [...new Set(imports)];
+
+  const apiImportStatement =
+    uniqueImports.length > 0
+      ? `
+import {
+  ${uniqueImports.join(",\n  ")}
+} from "../Services/Api";
+`
+      : "";
+
+  const reactImport =
+    uniqueImports.length > 0
+      ? `import React, {
+  useEffect,
+  useState,
+} from "react";`
+      : `import React from "react";`;
+
+  const stateCode =
+    uniqueSources
+      .map((source) => {
+        const entityName =
+          NormalizeEntityName(
+            source.entity
+          );
+
+        const variableName =
+          LowerFirst(
+            entityName
+          );
+
+        return `
+  const [
+    ${variableName}Count,
+    set${entityName}Count
+  ] = useState(0);
+`;
+      })
+      .join("\n");
+
+  const loadCode =
+    uniqueSources
+      .map((source) => {
+        const entityName =
+          NormalizeEntityName(
+            source.entity
+          );
+
+        const variableName =
+          LowerFirst(
+            entityName
+          );
+
+        return `
+      try {
+        const response =
+          await ${entityName}Api.getAll();
+
+        const payload =
+          response.data;
+
+        const records =
+          Array.isArray(payload)
+            ? payload
+            : payload?.items ||
+              payload?.data ||
+              payload?.records ||
+              [];
+
+        const count =
+          typeof payload?.count === "number"
+            ? payload.count
+            : Array.isArray(records)
+              ? records.length
+              : 0;
+
+        set${entityName}Count(
+          count
+        );
+      } catch (error) {
+        console.error(
+          "Unable to load ${source.entity} dashboard data:",
+          error
+        );
+      }
+`;
+      })
+      .join("\n");
+
+  const loadFunction =
+    uniqueSources.length > 0
+      ? `
+  const LoadDashboardData = async () => {
+${loadCode}
+  };
+
+
+  useEffect(() => {
+    LoadDashboardData();
+  }, []);
+`
+      : "";
+
+  const cards =
+    uniqueSources.length > 0
+      ? uniqueSources
+          .map((source) => {
+            const entityName =
+              NormalizeEntityName(
+                source.entity
+              );
+
+            const variableName =
+              LowerFirst(
+                entityName
+              );
+
+            return `
+          <article className="stat-card">
+
+            <span className="stat-label">
+              ${FormatLabel(source.entity)}
+            </span>
+
+            <strong className="stat-value">
+              {${variableName}Count}
+            </strong>
+
+          </article>`;
+          })
+          .join("\n")
+      : `
+          <article className="stat-card">
+
+            <span className="stat-label">
+              Dashboard
+            </span>
+
+            <strong className="stat-value">
+              Ready
+            </strong>
+
+          </article>`;
+
+  return `${reactImport}
+
+${apiImportStatement}
+
+const ${componentName} = () => {
+${stateCode}
+${loadFunction}
+
+  return (
+    <main className="page-shell">
+
+      <section className="page-header">
+
+        <span className="eyebrow">
+          ${applicationName}
+        </span>
+
+        <h1>
+          ${displayName}
+        </h1>
+
+        <p>
+          ${EscapeText(
+            description
+          )}
+        </p>
+
+      </section>
+
+
+      <section className="dashboard-grid">
+${cards}
+      </section>
+
+    </main>
+  );
+};
+
+
+export default ${componentName};
 `;
 };
 
@@ -1550,8 +2516,13 @@ const EscapeText = (
 module.exports = {
   GenerateFrontendFiles,
   GeneratePageComponent,
+  GenerateDashboardPage,
+  GenerateTableCell,
+  GenerateInputControl,
   GenerateFormField,
   GenerateSimplePage,
+  GetInfrastructureUserEntity,
+  GetPageEntity,
   NormalizeComponentName,
   NormalizeEntityName,
   GetReferenceFields,
@@ -1559,6 +2530,7 @@ module.exports = {
   GetAvailableEntityNames,
   GetReferenceOptionVariable,
   BuildLookupPath,
+  GetDashboardSources,
   FormatLabel,
   EscapeText,
 };

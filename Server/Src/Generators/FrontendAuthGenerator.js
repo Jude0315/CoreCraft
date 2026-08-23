@@ -47,10 +47,22 @@ const GenerateApiService = (
         ) === "User"
     );
 
+  const hasUserPage =
+    Array.isArray(
+      specification.pages
+    ) &&
+    specification.pages.some(
+      (page) =>
+        NormalizeEntityName(
+          page?.entity || ""
+        ) === "User"
+    );
+
   const serviceDefinitions =
     [
       ...apiModules,
-      ...(hasUserReference &&
+      ...((hasUserReference ||
+      hasUserPage) &&
       !hasUserApiModule
         ? [
             {
@@ -96,6 +108,9 @@ const GenerateApiService = (
         if (
           operations.includes(
             "read"
+          ) ||
+          operations.includes(
+            "view"
           )
         ) {
           methods.push(`  getAll: () =>
@@ -146,6 +161,11 @@ const GenerateApiService = (
           methods.push(`  remove: (id) =>
     API.delete(
       \`/${route}/\${id}\`
+    ),
+
+  delete: (id) =>
+    API.delete(
+      \`/${route}/\${id}\`
     )`);
         }
 
@@ -160,7 +180,9 @@ ${methods.join(",\n\n")}
       .filter(Boolean)
       .join("\n\n");
 
-  return `import axios from "axios";
+  return `// This service keeps HTTP requests separate from React page components.
+// Keeping API logic here makes the frontend easier to understand and maintain.
+import axios from "axios";
 
 const API = axios.create({
   baseURL:
@@ -193,7 +215,9 @@ export default API;
 };
 
 const GenerateAuthContext = () => {
-  return `import React, {
+  return `// AuthContext stores the current login state and makes it available
+// to every component in the React application.
+import React, {
   createContext,
   useContext,
   useEffect,
@@ -295,7 +319,8 @@ export const useAuth = () =>
 };
 
 const GenerateProtectedRoute = () => {
-  return `import React from "react";
+  return `// ProtectedRoute prevents unauthenticated users from opening private pages.
+import React from "react";
 
 import {
   Navigate,
@@ -388,6 +413,112 @@ const BuildRoleLandingPages = (
   });
 
   return landingPages;
+};
+
+const EscapeText = (
+  value = ""
+) => {
+  return String(value)
+    .replace(/`/g, "'")
+    .replace(/\$/g, "");
+};
+
+
+const GetAuthSpecification = (
+  specification = {}
+) => {
+  const ui =
+    specification.ui || {};
+
+  const auth =
+    ui.auth || {};
+
+  return {
+    formPosition:
+      auth.formPosition ||
+      "right",
+
+    contentAlignment:
+      auth.contentAlignment ||
+      "center",
+
+    background:
+      auth.background || {},
+
+    panel:
+      auth.panel || {},
+
+    branding:
+      auth.branding || {},
+
+    decoration:
+      auth.decoration || {},
+  };
+};
+
+
+const GetAuthClassName = (
+  auth
+) => {
+  return [
+    "auth-shell",
+    `auth-position-${auth.formPosition}`,
+    `auth-align-${auth.contentAlignment}`,
+    `auth-background-${auth.background?.type || "solid"}`,
+    `auth-panel-${auth.panel?.style || "solid"}`,
+    `auth-decoration-${auth.decoration?.type || "none"}`,
+    `auth-brand-${auth.branding?.position || "left"}`,
+    `auth-brand-align-${auth.branding?.alignment || "left"}`,
+  ].join(" ");
+};
+
+
+const GenerateAuthBranding = (
+  applicationName,
+  description,
+  auth
+) => {
+  if (
+    auth.branding?.show === false ||
+    auth.branding?.position === "none"
+  ) {
+    return "";
+  }
+
+  const showDescription =
+    auth.branding?.showDescription !==
+    false;
+
+  return `      <section className="auth-brand">
+
+        <div className="auth-brand-content">
+
+          <span className="eyebrow">
+            Welcome to
+          </span>
+
+          <h1>
+            ${EscapeText(
+              applicationName
+            )}
+          </h1>
+
+${
+  showDescription &&
+  description
+    ? `          <p>
+            ${EscapeText(
+              description
+            )}
+          </p>
+`
+    : ""
+}
+
+        </div>
+
+      </section>
+`;
 };
 
 const GenerateThemeCss = (appType = "Application") => {
@@ -1411,8 +1542,34 @@ a {
 const GenerateLoginPage = (
   appName = "Application",
   roles = [],
-  pages = []
+  pages = [],
+  specification = {}
 ) => {
+  const auth =
+    GetAuthSpecification(
+      specification
+    );
+
+  const applicationName =
+    specification.applicationName ||
+    appName;
+
+  const description =
+    specification.description ||
+    "";
+
+  const authClassName =
+    GetAuthClassName(
+      auth
+    );
+
+  const brandingContent =
+    GenerateAuthBranding(
+      applicationName,
+      description,
+      auth
+    );
+
   const roleLandingPages =
     BuildRoleLandingPages(
       roles,
@@ -1501,21 +1658,9 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="auth-shell">
+    <div className="${authClassName}">
 
-      <section className="auth-brand">
-
-        <h1>
-          ${appName}
-        </h1>
-
-        <p>
-          Sign in to continue to your
-          workspace.
-        </p>
-
-      </section>
-
+${brandingContent}
 
       <section className="auth-panel">
 
@@ -1626,8 +1771,34 @@ const FormatRoleLabel = (role = "") => {
 
 const GenerateRegisterPage = (
   appName = "Application",
-  roles = []
+  roles = [],
+  specification = {}
 ) => {
+  const auth =
+    GetAuthSpecification(
+      specification
+    );
+
+  const applicationName =
+    specification.applicationName ||
+    appName;
+
+  const description =
+    specification.description ||
+    "";
+
+  const authClassName =
+    GetAuthClassName(
+      auth
+    );
+
+  const brandingContent =
+    GenerateAuthBranding(
+      applicationName,
+      description,
+      auth
+    );
+
   const safeRoles =
     Array.isArray(roles) &&
     roles.length > 0
@@ -1719,19 +1890,9 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="auth-shell">
+    <div className="${authClassName}">
 
-      <section className="auth-brand">
-        <h1>
-          ${appName}
-        </h1>
-
-        <p>
-          Create your account and start
-          using the platform.
-        </p>
-      </section>
-
+${brandingContent}
 
       <section className="auth-panel">
 
@@ -2007,4 +2168,7 @@ module.exports = {
   GenerateRegisterPage,
   GenerateNavbar,
   BuildRoleLandingPages,
+  GetAuthSpecification,
+  GetAuthClassName,
+  GenerateAuthBranding,
 };

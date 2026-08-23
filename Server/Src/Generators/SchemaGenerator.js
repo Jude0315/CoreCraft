@@ -7,6 +7,18 @@ const NormalizeEntityName = (name = "") => {
 };
 
 
+const GenerateSectionComment = (
+  lines = []
+) => {
+  return lines
+    .map(
+      (line) =>
+        `// ${line}`
+    )
+    .join("\n");
+};
+
+
 const GenerateFieldDefinition = (field) => {
   if (!field || !field.name) {
     throw new Error(
@@ -76,7 +88,15 @@ const GenerateFieldDefinition = (field) => {
     );
   }
 
-  return `  ${field.name}: {
+  const relationshipComment =
+    field.type === "ObjectId" &&
+    field.ref
+      ? `  // This field stores a reference to the ${field.ref} collection.
+  // Mongoose can populate this reference so the frontend receives readable related data.
+`
+      : "";
+
+  return `${relationshipComment}  ${field.name}: {
     ${properties.join(",\n    ")}
   }`;
 };
@@ -118,6 +138,10 @@ const GenerateSchemaFile = (
 // This model was generated dynamically by CoreCraft.
 // Add domain-specific validation or business rules here if needed.
 
+${GenerateSectionComment([
+  `This Mongoose schema defines the structure of each ${entityName} document stored in MongoDB.`,
+  "Each field below comes from the CoreCraft generation specification.",
+])}
 const ${entityName}Schema =
   new mongoose.Schema(
     {
@@ -181,5 +205,6 @@ module.exports = {
   GenerateSchemaFiles,
   GenerateSchemaFile,
   GenerateFieldDefinition,
+  GenerateSectionComment,
   NormalizeEntityName,
 };

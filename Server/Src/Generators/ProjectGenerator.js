@@ -288,6 +288,319 @@ const GenerateClientEnvironmentFile = () => {
 `;
 };
 
+const GenerateEnvExample = () => {
+  return `# Backend server port
+PORT=5001
+
+# Local MongoDB connection
+MONGO_URI=mongodb://127.0.0.1:27017/generated_app
+
+# Replace this value before using the application
+JWT_SECRET=replace_with_a_secure_secret
+`;
+};
+
+const GenerateGitIgnore = () => {
+  return `node_modules/
+.env
+dist/
+build/
+*.log
+.DS_Store
+`;
+};
+
+const GenerateReadme = (
+  specification = {}
+) => {
+  const applicationName =
+    specification.applicationName ||
+    "Generated MERN Application";
+
+  const description =
+    specification.description ||
+    "A MERN application generated using CoreCraft.";
+
+  const roles =
+    specification.roles || [];
+
+  const entities =
+    specification.entities || [];
+
+  const pages =
+    specification.pages || [];
+
+  const apiModules =
+    specification.apiModules || [];
+
+  const features =
+    specification.features || [];
+
+  const roleList =
+    roles.length
+      ? roles
+          .map(
+            (role) =>
+              `- ${role}`
+          )
+          .join("\n")
+      : "- No roles specified";
+
+  const entityList =
+    entities.length
+      ? entities
+          .map(
+            (entity) => {
+              const fields =
+                (
+                  entity.fields ||
+                  []
+                )
+                  .map(
+                    (field) =>
+                      `  - ${field.name} (${field.type})`
+                  )
+                  .join("\n");
+
+              return `- ${entity.name}
+${fields}`;
+            }
+          )
+          .join("\n")
+      : "- No business entities specified";
+
+  const pageList =
+    pages.length
+      ? pages
+          .map(
+            (page) =>
+              `- ${page.name} - ${page.route}`
+          )
+          .join("\n")
+      : "- No pages specified";
+
+  const apiList =
+    apiModules.length
+      ? apiModules
+          .map(
+            (apiModule) =>
+              `- ${apiModule.name}: ${(apiModule.operations || []).join(", ")}`
+          )
+          .join("\n")
+      : "- No API modules specified";
+
+  const featureList =
+    features.length
+      ? features
+          .map(
+            (feature) =>
+              `- ${feature}`
+          )
+          .join("\n")
+      : "- No additional features specified";
+
+  return `# ${applicationName}
+
+${description}
+
+This project was generated using **CoreCraft**.
+
+CoreCraft creates structured MERN starter applications from application requirements.
+
+---
+
+## Technology Stack
+
+- MongoDB
+- Express.js
+- React
+- Node.js
+- Mongoose
+- JWT Authentication
+
+---
+
+## Application Roles
+
+${roleList}
+
+---
+
+## Business Entities
+
+${entityList}
+
+---
+
+## Generated Pages
+
+${pageList}
+
+---
+
+## API Modules
+
+${apiList}
+
+---
+
+## Generated Features
+
+${featureList}
+
+---
+
+## Project Structure
+
+\`\`\`text
+${applicationName}/
+|
+|-- Client/
+|   |-- public/
+|   |-- src/
+|   |   |-- Components/
+|   |   |-- Context/
+|   |   |-- Layouts/
+|   |   |-- Pages/
+|   |   |-- Routes/
+|   |   |-- Services/
+|   |   \`-- Utils/
+|   \`-- package.json
+|
+|-- Server/
+|   |-- Src/
+|   |   |-- Config/
+|   |   |-- Controllers/
+|   |   |-- Middleware/
+|   |   |-- Models/
+|   |   |-- Routes/
+|   |   \`-- Utils/
+|   |-- .env.example
+|   \`-- package.json
+|
+\`-- README.md
+\`\`\`
+
+---
+
+## Authentication
+
+The generated application includes JWT-based authentication.
+
+Protected routes require a valid authentication token.
+
+Role-based permissions are generated from the CoreCraft specification.
+
+---
+
+## Backend Setup
+
+Navigate into the backend:
+
+\`\`\`bash
+cd Server
+\`\`\`
+
+Install dependencies:
+
+\`\`\`bash
+npm install
+\`\`\`
+
+Create a local environment file:
+
+\`\`\`text
+.env
+\`\`\`
+
+You can copy the values from:
+
+\`\`\`text
+.env.example
+\`\`\`
+
+Then start the backend:
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+The backend normally runs at:
+
+\`\`\`text
+http://localhost:5001
+\`\`\`
+
+---
+
+## Frontend Setup
+
+Open another terminal and navigate into the client:
+
+\`\`\`bash
+cd Client
+\`\`\`
+
+Install dependencies:
+
+\`\`\`bash
+npm install
+\`\`\`
+
+Start the React application:
+
+\`\`\`bash
+npm run dev
+\`\`\`
+
+The frontend normally runs at:
+
+\`\`\`text
+http://localhost:5173
+\`\`\`
+
+---
+
+## Generated Code
+
+CoreCraft generates:
+
+- MongoDB models
+- Express controllers
+- REST API routes
+- JWT authentication
+- role-based authorization
+- React pages
+- CRUD forms
+- relationship lookups
+- dashboards
+- navigation
+- dynamic styling
+- AI-designed authentication UI
+- student-friendly code comments
+
+The generated source code contains educational comments explaining the purpose of important sections.
+
+---
+
+## Development Notes
+
+This application is generated as a development-ready MERN starter project.
+
+Before production deployment, review:
+
+- environment configuration
+- security settings
+- database configuration
+- validation rules
+- deployment settings
+
+---
+
+Generated with CoreCraft.
+`;
+};
+
 const GenerateMainJsx = (
   specification = {}
 ) => {
@@ -357,7 +670,7 @@ import App from "./App";
 ${authImport}
 
 
-import "./Styles/theme.css";
+import "./index.css";
 
 
 
@@ -381,6 +694,238 @@ ReactDOM.createRoot(
 
   </React.StrictMode>
 );
+`;
+};
+
+const GenerateAppLayout = (
+  specification = {}
+) => {
+  const applicationName =
+    specification.applicationName ||
+    "Generated Application";
+
+  const pages =
+    Array.isArray(
+      specification.pages
+    )
+      ? specification.pages
+      : [];
+
+  const navigation =
+    specification.ui?.layout?.navigation ||
+    specification.ui?.navigation ||
+    "sidebar";
+
+
+  const navigationItems =
+    pages
+      .filter(
+        (page) =>
+          page.route &&
+          page.name &&
+          page.protected
+      )
+      .map((page) => ({
+        name:
+          page.name,
+
+        route:
+          page.route,
+
+        roles:
+          Array.isArray(
+            page.roles
+          )
+            ? page.roles
+            : [],
+      }));
+
+
+  return `
+import React from "react";
+
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  useAuth,
+} from "../Context/AuthContext";
+
+
+const navigationItems =
+  ${JSON.stringify(
+    navigationItems,
+    null,
+    2
+  )};
+
+
+const AppLayout = () => {
+
+  const navigate =
+    useNavigate();
+
+
+  const {
+    user,
+    loading,
+    Logout,
+  } = useAuth();
+
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        Loading...
+      </div>
+    );
+  }
+
+
+  const role =
+    user?.role || "";
+
+
+  const visibleItems =
+    navigationItems.filter(
+      (item) =>
+        item.roles.length === 0 ||
+        item.roles.includes(
+          role
+        )
+    );
+
+
+  const HandleLogout = () => {
+    Logout();
+
+    navigate(
+      "/login"
+    );
+  };
+
+
+  return (
+    <div
+      className=
+        "app-layout navigation-${navigation}"
+    >
+
+      <header className="app-header">
+
+        <div className="brand-block">
+
+          <strong className="brand-name">
+            ${applicationName}
+          </strong>
+
+        </div>
+
+
+        ${
+          navigation === "topbar"
+            ? `
+        <nav className="top-navigation">
+
+          {visibleItems.map(
+            (item) => (
+              <NavLink
+                key={item.route}
+                to={item.route}
+                className={({
+                  isActive
+                }) =>
+                  isActive
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                {item.name}
+              </NavLink>
+            )
+          )}
+
+        </nav>
+`
+            : ""
+        }
+
+
+        <div className="header-actions">
+
+          {role && (
+            <span className="user-role">
+              {role}
+            </span>
+          )}
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={HandleLogout}
+          >
+            Logout
+          </button>
+
+        </div>
+
+      </header>
+
+
+      <div className="app-body">
+
+
+        ${
+          navigation === "sidebar" ||
+          navigation === "hybrid"
+            ? `
+        <aside className="app-sidebar">
+
+          <nav className="side-navigation">
+
+            {visibleItems.map(
+              (item) => (
+                <NavLink
+                  key={item.route}
+                  to={item.route}
+                  className={({
+                    isActive
+                  }) =>
+                    isActive
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                >
+                  {item.name}
+                </NavLink>
+              )
+            )}
+
+          </nav>
+
+        </aside>
+`
+            : ""
+        }
+
+
+        <section className="app-content">
+
+          <Outlet />
+
+        </section>
+
+      </div>
+
+    </div>
+  );
+};
+
+
+export default AppLayout;
 `;
 };
 
@@ -512,8 +1057,8 @@ const GenerateAppJsx = (
 import ProtectedRoute
   from "./Routes/ProtectedRoute";
 
-import Navbar
-  from "./Components/Navbar";
+import AppLayout
+  from "./Layouts/AppLayout";
 
 import LoginPage
   from "./Pages/LoginPage";
@@ -528,8 +1073,16 @@ import RegisterPage
      Dynamic page routes
      ----------------------------------------- */
 
-  const routeDefinitions =
+  const publicRouteDefinitions =
     normalizedPages
+      .filter(
+        ({
+          protected:
+            isProtected,
+        }) =>
+          !hasAuthentication ||
+          !isProtected
+      )
       .map(
         ({
           componentName,
@@ -542,7 +1095,7 @@ import RegisterPage
           const path =
             route.startsWith("/")
               ? route
-              : `/${route}`;
+            : `/${route}`;
 
           /*
             Public application
@@ -571,11 +1124,7 @@ import RegisterPage
         <Route
           path="${path}"
           element={
-            <>
-              <Navbar />
-
-              <${componentName} />
-            </>
+            <${componentName} />
           }
         />`;
           }
@@ -598,13 +1147,7 @@ import RegisterPage
           element={
             <ProtectedRoute${rolesProperty}>
 
-              <>
-
-                <Navbar />
-
-                <${componentName} />
-
-              </>
+              <${componentName} />
 
             </ProtectedRoute>
           }
@@ -612,6 +1155,70 @@ import RegisterPage
         }
       )
       .join("\n");
+
+  const protectedRouteDefinitions =
+    hasAuthentication
+      ? normalizedPages
+          .filter(
+            ({
+              protected:
+                isProtected,
+            }) => isProtected
+          )
+          .map(
+            ({
+              componentName,
+              route,
+              roles:
+                pageRoles,
+            }) => {
+              const path =
+                route.startsWith("/")
+                  ? route
+                  : `/${route}`;
+
+              const rolesProperty =
+                pageRoles.length > 0
+                  ? ` roles={${JSON.stringify(
+                      pageRoles
+                    )}}`
+                  : "";
+
+              return `
+          <Route
+            path="${path}"
+            element={
+              <ProtectedRoute${rolesProperty}>
+
+                <${componentName} />
+
+              </ProtectedRoute>
+            }
+          />`;
+            }
+          )
+          .join("\n")
+      : "";
+
+  const protectedLayoutRoutes =
+    hasAuthentication &&
+    protectedRouteDefinitions
+      ? `
+        <Route
+          element={
+            <ProtectedRoute>
+
+              <AppLayout />
+
+            </ProtectedRoute>
+          }
+        >
+
+${protectedRouteDefinitions}
+
+        </Route>
+`
+      : "";
 
 
   /* -----------------------------------------
@@ -660,7 +1267,9 @@ ${rootRoute}
 
 ${authenticationRoutes}
 
-${routeDefinitions}
+${publicRouteDefinitions}
+
+${protectedLayoutRoutes}
 
         <Route
           path="*"
@@ -775,8 +1384,12 @@ module.exports = {
   GenerateServerFile,
   GenerateServerAppFile,
   GenerateEnvironmentFile,
+  GenerateEnvExample,
+  GenerateGitIgnore,
+  GenerateReadme,
   GenerateClientEnvironmentFile,
   GenerateMainJsx,
+  GenerateAppLayout,
   GenerateAppJsx,
   GenerateIndexHtml,
 };

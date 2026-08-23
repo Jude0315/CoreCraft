@@ -120,18 +120,61 @@ const NormalizeRoleReferences = (
 };
 
 
+const FindMatchingRoleForUserReference = (
+  field,
+  roles
+) => {
+  const searchableText =
+    [
+      field?.name,
+      field?.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+  const normalizedSearchableText =
+    NormalizeName(
+      searchableText
+    );
+
+  const sortedRoles =
+    [...(roles || [])]
+      .sort(
+        (a, b) =>
+          String(b).length -
+          String(a).length
+      );
+
+  return (
+    sortedRoles.find((role) => {
+      const roleText =
+        String(role)
+          .toLowerCase();
+
+      const normalizedRole =
+        NormalizeName(role);
+
+      return (
+        searchableText.includes(
+          roleText
+        ) ||
+        normalizedSearchableText.includes(
+          normalizedRole
+        )
+      );
+    }) ||
+    null
+  );
+};
+
+
 const AddUserRoleReferenceFilters = (
   specification,
   warnings
 ) => {
   const roles =
-    (specification.roles || []).map(
-      (role) => ({
-        original: role,
-        normalized:
-          NormalizeName(role),
-      })
-    );
+    specification.roles || [];
 
   specification.entities =
     (specification.entities || []).map(
@@ -150,27 +193,10 @@ const AddUserRoleReferenceFilters = (
                 return field;
               }
 
-              const fieldName =
-                NormalizeName(
-                  field.name
-                );
-
-              const description =
-                NormalizeName(
-                  field.description
-                );
-
               const matchingRole =
-                roles.find(
-                  (role) =>
-                    fieldName ===
-                      role.normalized ||
-                    fieldName.includes(
-                      role.normalized
-                    ) ||
-                    description.includes(
-                      role.normalized
-                    )
+                FindMatchingRoleForUserReference(
+                  field,
+                  roles
                 );
 
               if (!matchingRole) {
@@ -178,7 +204,7 @@ const AddUserRoleReferenceFilters = (
               }
 
               warnings.push(
-                `Added role filter to ${entity.name}.${field.name}: User.role must equal "${matchingRole.original}".`
+                `Added User role filter "${matchingRole}" to ${entity.name}.${field.name}.`
               );
 
               return {
@@ -188,7 +214,7 @@ const AddUserRoleReferenceFilters = (
                   field: "role",
                   operator: "equals",
                   value:
-                    matchingRole.original,
+                    matchingRole,
                 },
               };
             }
@@ -217,46 +243,112 @@ const NormalizeInfrastructureUserEntity = (
     return specification;
   }
 
-  const userEntity =
-    (specification.entities || []).find(
+  const hasUserEntity =
+    (specification.entities || []).some(
       (entity) =>
-        NormalizeName(entity.name) ===
-        "user"
+        NormalizeName(
+          entity.name
+        ) === "user"
     );
 
-  if (!userEntity) {
-    return specification;
-  }
-
-  const userFieldNames =
-    new Set(
-      (userEntity.fields || []).map(
-        (field) =>
-          NormalizeName(field.name)
-      )
-    );
-
-  const looksLikeAuthUser =
-    userFieldNames.has("email") &&
-    (
-      userFieldNames.has("password") ||
-      userFieldNames.has("role")
-    );
-
-  if (!looksLikeAuthUser) {
+  if (!hasUserEntity) {
     return specification;
   }
 
   specification.entities =
     (specification.entities || []).filter(
       (entity) =>
-        NormalizeName(entity.name) !==
-        "user"
+        NormalizeName(
+          entity.name
+        ) !== "user"
     );
 
   warnings.push(
-    "Removed duplicate User business entity because authentication is enabled and CoreCraft already generates the infrastructure User model."
+    "Removed User from business entities because authentication is enabled and User is provided by CoreCraft authentication infrastructure."
   );
+
+  return specification;
+};
+
+
+const NormalizePageEntityReferences = (
+  specification,
+  warnings
+) => {
+  const validEntities =
+    new Set(
+      (specification.entities || [])
+        .map(
+          (entity) =>
+            NormalizeName(
+              entity.name
+            )
+        )
+    );
+
+  /*
+   * User may be supplied by the
+   * authentication infrastructure.
+   */
+  const hasAuthentication =
+    (specification.roles || []).length > 0 ||
+    (specification.pages || []).some(
+      (page) => page.protected
+    ) ||
+    (specification.apiModules || []).some(
+      (module) => module.protected
+    );
+
+  if (hasAuthentication) {
+    validEntities.add("user");
+  }
+
+  specification.pages =
+    (specification.pages || [])
+      .map((page) => {
+        if (!page.entity) {
+          return page;
+        }
+
+        const normalizedEntity =
+          NormalizeName(
+            page.entity
+          );
+
+        if (
+          validEntities.has(
+            normalizedEntity
+          )
+        ) {
+          return page;
+        }
+
+        /*
+         * A dashboard/summary page can exist
+         * without being backed by one entity.
+         */
+        if (
+          page.type === "dashboard"
+        ) {
+          warnings.push(
+            `Removed invalid entity "${page.entity}" from dashboard page "${page.name}" because no matching entity or infrastructure model exists.`
+          );
+
+          return {
+            ...page,
+            entity: "",
+          };
+        }
+
+        warnings.push(
+          `Removed invalid entity "${page.entity}" from page "${page.name}" because no matching entity or infrastructure model exists.`
+        );
+
+        return {
+          ...page,
+          entity: "",
+        };
+      });
 
   return specification;
 };
@@ -650,6 +742,1011 @@ const ValidateReferenceIntegrity = (
 };
 
 
+const NormalizeRoleActions = (
+  specification,
+  warnings
+) => {
+  const NormalizePageAction = (
+    action
+  ) => {
+    switch (
+      String(action)
+        .toLowerCase()
+    ) {
+      case "read":
+        return "view";
+
+      case "update":
+        return "edit";
+
+      default:
+        return String(action)
+          .toLowerCase();
+    }
+  };
+
+  const NormalizeApiAction = (
+    action
+  ) => {
+    switch (
+      String(action)
+        .toLowerCase()
+    ) {
+      case "view":
+        return "read";
+
+      case "edit":
+        return "update";
+
+      default:
+        return String(action)
+          .toLowerCase();
+    }
+  };
+
+  const NormalizeEntries = (
+    container,
+    supportedActions,
+    normalizeAction
+  ) => {
+    const roles =
+      Array.isArray(container.roles)
+        ? container.roles
+        : [];
+
+    const actions =
+      Array.isArray(
+        supportedActions
+      )
+        ? [
+            ...new Set(
+              supportedActions.map(
+                normalizeAction
+              )
+            ),
+          ]
+        : [];
+
+    if (
+      !Array.isArray(
+        container.roleActions
+      )
+    ) {
+      container.roleActions = [];
+
+      return container;
+    }
+
+    container.roleActions =
+      container.roleActions
+        .filter((entry) => {
+          if (
+            !entry ||
+            !roles.includes(
+              entry.role
+            )
+          ) {
+            warnings.push(
+              `Removed invalid roleActions entry for role "${entry?.role || ""}".`
+            );
+
+            return false;
+          }
+
+          return true;
+        })
+        .map((entry) => ({
+          role:
+            entry.role,
+
+          actions:
+            [
+              ...new Set(
+                (
+                  Array.isArray(
+                    entry.actions
+                  )
+                    ? entry.actions
+                    : []
+                )
+                  .map((action) =>
+                    normalizeAction(
+                      action
+                    )
+                  )
+                  .filter(
+                    (action) =>
+                    actions.includes(
+                      action
+                    )
+                  )
+              ),
+            ],
+        }))
+        .filter((entry) => {
+          if (
+            entry.actions.length === 0
+          ) {
+            warnings.push(
+              `Removed empty roleActions entry for role "${entry.role}".`
+            );
+
+            return false;
+          }
+
+          return true;
+        });
+
+    return container;
+  };
+
+  specification.pages =
+    (specification.pages || [])
+      .map((page) => {
+        page.actions =
+          [
+            ...new Set(
+              (page.actions || [])
+                .map(
+                  NormalizePageAction
+                )
+                .filter(
+                  (action) =>
+                    [
+                      "view",
+                      "create",
+                      "edit",
+                      "delete",
+                    ].includes(
+                      action
+                    )
+                )
+            ),
+          ];
+
+        return NormalizeEntries(
+          page,
+          page.actions || [],
+          NormalizePageAction
+        );
+      });
+
+  specification.apiModules =
+    (specification.apiModules || [])
+      .map((apiModule) => {
+        apiModule.operations =
+          [
+            ...new Set(
+              (
+                apiModule.operations ||
+                []
+              )
+                .map(
+                  NormalizeApiAction
+                )
+                .filter(
+                  (operation) =>
+                    [
+                      "read",
+                      "create",
+                      "update",
+                      "delete",
+                    ].includes(
+                      operation
+                    )
+                )
+            ),
+          ];
+
+        return NormalizeEntries(
+          apiModule,
+          apiModule.operations || [],
+          NormalizeApiAction
+        );
+      });
+
+  return specification;
+};
+
+
+const PageActionToApiOperation = (
+  action
+) => {
+  const map = {
+    view: "read",
+    create: "create",
+    edit: "update",
+    delete: "delete",
+  };
+
+  return map[action] || null;
+};
+
+
+const FindApiModuleForEntity = (
+  specification,
+  entityName
+) => {
+  return (
+    specification.apiModules || []
+  ).find(
+    (apiModule) =>
+      NormalizeName(
+        apiModule.entity
+      ) ===
+      NormalizeName(
+        entityName
+      )
+  );
+};
+
+
+const GetAllowedApiOperationsForRole = (
+  apiModule,
+  role
+) => {
+  if (!apiModule) {
+    return [];
+  }
+
+  const roleActions =
+    apiModule.roleActions || [];
+
+  if (
+    roleActions.length > 0
+  ) {
+    const match =
+      roleActions.find(
+        (item) =>
+          NormalizeName(
+            item.role
+          ) ===
+          NormalizeName(
+            role
+          )
+      );
+
+    return (
+      match?.actions || []
+    );
+  }
+
+  const roleAllowed =
+    (
+      apiModule.roles || []
+    ).some(
+      (item) =>
+        NormalizeName(item) ===
+        NormalizeName(role)
+    );
+
+  return roleAllowed
+    ? apiModule.operations || []
+    : [];
+};
+
+
+const SynchronizePageAndApiPermissions = (
+  specification,
+  warnings = []
+) => {
+  const pages =
+    specification.pages || [];
+
+  for (const page of pages) {
+    /*
+     * Dashboard and non-entity pages do not need
+     * CRUD permission synchronization.
+     */
+    if (
+      !page.entity ||
+      page.type === "dashboard"
+    ) {
+      continue;
+    }
+
+    const apiModule =
+      FindApiModuleForEntity(
+        specification,
+        page.entity
+      );
+
+    if (!apiModule) {
+      continue;
+    }
+
+    const normalizedRoleActions = [];
+
+    for (
+      const roleEntry of
+      page.roleActions || []
+    ) {
+      const allowedApiOperations =
+        GetAllowedApiOperationsForRole(
+          apiModule,
+          roleEntry.role
+        );
+
+      const safePageActions =
+        (
+          roleEntry.actions || []
+        ).filter((pageAction) => {
+          const requiredOperation =
+            PageActionToApiOperation(
+              pageAction
+            );
+
+          if (!requiredOperation) {
+            return false;
+          }
+
+          const allowed =
+            allowedApiOperations.includes(
+              requiredOperation
+            );
+
+          if (!allowed) {
+            warnings.push(
+              `Removed page action "${pageAction}" from role "${roleEntry.role}" on page "${page.name}" because the matching API does not allow "${requiredOperation}".`
+            );
+          }
+
+          return allowed;
+        });
+
+      if (
+        safePageActions.length > 0
+      ) {
+        normalizedRoleActions.push({
+          role:
+            roleEntry.role,
+
+          actions:
+            safePageActions,
+        });
+      }
+    }
+
+    page.roleActions =
+      normalizedRoleActions;
+
+    /*
+     * Rebuild the page-wide actions list from
+     * all role-specific permissions.
+     */
+    page.actions =
+      [
+        ...new Set(
+          normalizedRoleActions
+            .flatMap(
+              (entry) =>
+                entry.actions || []
+            )
+        ),
+      ];
+  }
+
+  return specification;
+};
+
+
+const HexToRgb = (
+  hex
+) => {
+  const normalized =
+    String(hex || "")
+      .replace("#", "");
+
+  if (
+    normalized.length !== 6
+  ) {
+    return null;
+  }
+
+  return {
+    r:
+      parseInt(
+        normalized.slice(0, 2),
+        16
+      ),
+
+    g:
+      parseInt(
+        normalized.slice(2, 4),
+        16
+      ),
+
+    b:
+      parseInt(
+        normalized.slice(4, 6),
+        16
+      ),
+  };
+};
+
+
+const GetBrightness = (
+  hex
+) => {
+  const rgb =
+    HexToRgb(
+      hex
+    );
+
+  if (!rgb) {
+    return 255;
+  }
+
+  return (
+    rgb.r * 299 +
+    rgb.g * 587 +
+    rgb.b * 114
+  ) / 1000;
+};
+
+
+const GetReadableTextColor = (
+  background
+) => {
+  return (
+    GetBrightness(
+      background
+    ) > 160
+  )
+    ? "#111827"
+    : "#f9fafb";
+};
+
+
+const NormalizeUiSpecification = (
+  specification,
+  warnings
+) => {
+  const ui =
+    specification.ui || {};
+
+  const isHexColor = (value) =>
+    typeof value === "string" &&
+    /^#[0-9A-Fa-f]{6}$/.test(
+      value
+    );
+
+  const isCssSize = (value) =>
+    typeof value === "string" &&
+    /^(\d+(\.\d+)?)(px|rem|em|%|vw|vh)$/.test(
+      value
+    );
+
+  const safeColor = (
+    value,
+    fallback
+  ) =>
+    isHexColor(value)
+      ? value
+      : fallback;
+
+  const safeSize = (
+    value,
+    fallback
+  ) =>
+    isCssSize(value)
+      ? value
+      : fallback;
+
+  const safeEnum = (
+    value,
+    allowed,
+    fallback
+  ) =>
+    allowed.includes(value)
+      ? value
+      : fallback;
+
+  const safeNumber = (
+    value,
+    fallback,
+    min,
+    max
+  ) => {
+    const numericValue =
+      Number(value);
+
+    if (
+      Number.isFinite(
+        numericValue
+      ) &&
+      numericValue >= min &&
+      numericValue <= max
+    ) {
+      return numericValue;
+    }
+
+    return fallback;
+  };
+
+  const safeShadow =
+    typeof ui.cardShadow === "string" &&
+    ui.cardShadow.trim()
+      ? ui.cardShadow
+      : "0 10px 30px rgba(15, 23, 42, 0.08)";
+
+  const primary =
+    safeColor(
+      ui.colors?.primary,
+      "#2563eb"
+    );
+
+  const background =
+    safeColor(
+      ui.colors?.background,
+      "#f8fafc"
+    );
+
+  const surface =
+    safeColor(
+      ui.colors?.surface,
+      "#ffffff"
+    );
+
+  const safeOpacity = (
+    value,
+    fallback
+  ) => {
+    const numericValue =
+      Number(value);
+
+    if (
+      Number.isFinite(
+        numericValue
+      ) &&
+      numericValue >= 0 &&
+      numericValue <= 1
+    ) {
+      return numericValue;
+    }
+
+    return fallback;
+  };
+
+  const normalizedColors = {
+    primary:
+      primary,
+
+    primaryText:
+      safeColor(
+        ui.colors?.primaryText,
+        GetReadableTextColor(
+          primary
+        )
+      ),
+
+    secondary:
+      safeColor(
+        ui.colors?.secondary,
+        "#64748b"
+      ),
+
+    background:
+      background,
+
+    surface:
+      surface,
+
+    surfaceText:
+      safeColor(
+        ui.colors?.surfaceText,
+        GetReadableTextColor(
+          surface
+        )
+      ),
+
+    text:
+      safeColor(
+        ui.colors?.text,
+        GetReadableTextColor(
+          background
+        )
+      ),
+
+    mutedText:
+      safeColor(
+        ui.colors?.mutedText,
+        "#64748b"
+      ),
+
+    border:
+      safeColor(
+        ui.colors?.border,
+        "#e2e8f0"
+      ),
+
+    danger:
+      safeColor(
+        ui.colors?.danger,
+        "#dc2626"
+      ),
+
+    success:
+      safeColor(
+        ui.colors?.success,
+        "#16a34a"
+      ),
+  };
+
+  const auth =
+    ui.auth || {};
+
+  const normalizedAuth = {
+    formPosition:
+      safeEnum(
+        auth.formPosition,
+        [
+          "left",
+          "right",
+          "center",
+        ],
+        "right"
+      ),
+
+    contentAlignment:
+      safeEnum(
+        auth.contentAlignment,
+        [
+          "start",
+          "center",
+          "end",
+        ],
+        "center"
+      ),
+
+    background: {
+      type:
+        safeEnum(
+          auth.background?.type,
+          [
+            "solid",
+            "gradient",
+            "radial",
+            "mesh",
+            "pattern",
+          ],
+          "gradient"
+        ),
+
+      primary:
+        safeColor(
+          auth.background?.primary,
+          normalizedColors.background
+        ),
+
+      secondary:
+        safeColor(
+          auth.background?.secondary,
+          normalizedColors.primary
+        ),
+
+      accent:
+        safeColor(
+          auth.background?.accent,
+          normalizedColors.primary
+        ),
+
+      direction:
+        typeof auth.background
+          ?.direction === "string" &&
+        auth.background.direction.trim()
+          ? auth.background.direction
+          : "135deg",
+    },
+
+    panel: {
+      style:
+        safeEnum(
+          auth.panel?.style,
+          [
+            "solid",
+            "glass",
+            "bordered",
+            "minimal",
+          ],
+          "solid"
+        ),
+
+      width:
+        safeSize(
+          auth.panel?.width,
+          "420px"
+        ),
+
+      opacity:
+        safeOpacity(
+          auth.panel?.opacity,
+          1
+        ),
+
+      padding:
+        safeSize(
+          auth.panel?.padding,
+          "32px"
+        ),
+    },
+
+    branding: {
+      show:
+        typeof auth.branding?.show ===
+        "boolean"
+          ? auth.branding.show
+          : true,
+
+      position:
+        safeEnum(
+          auth.branding?.position,
+          [
+            "left",
+            "right",
+            "top",
+            "none",
+          ],
+          "left"
+        ),
+
+      showDescription:
+        typeof auth.branding
+          ?.showDescription ===
+        "boolean"
+          ? auth.branding.showDescription
+          : true,
+
+      alignment:
+        safeEnum(
+          auth.branding?.alignment,
+          [
+            "left",
+            "center",
+            "right",
+          ],
+          "left"
+        ),
+    },
+
+    decoration: {
+      type:
+        safeEnum(
+          auth.decoration?.type,
+          [
+            "none",
+            "glow",
+            "grid",
+            "orbs",
+            "lines",
+          ],
+          "none"
+        ),
+
+      intensity:
+        safeEnum(
+          auth.decoration?.intensity,
+          [
+            "subtle",
+            "medium",
+            "strong",
+          ],
+          "subtle"
+        ),
+    },
+  };
+
+  specification.ui = {
+    ...ui,
+
+    theme:
+      safeEnum(
+        ui.theme,
+        [
+          "modern",
+          "minimal",
+          "corporate",
+          "bold",
+          "elegant",
+        ],
+        "modern"
+      ),
+
+    style:
+      safeEnum(
+        ui.style,
+        [
+          "professional",
+          "clean",
+          "friendly",
+          "technical",
+          "premium",
+        ],
+        "professional"
+      ),
+
+    colors:
+      normalizedColors,
+
+    spacing: {
+      xs:
+        safeSize(
+          ui.spacing?.xs,
+          "6px"
+        ),
+
+      sm:
+        safeSize(
+          ui.spacing?.sm,
+          "10px"
+        ),
+
+      md:
+        safeSize(
+          ui.spacing?.md,
+          "16px"
+        ),
+
+      lg:
+        safeSize(
+          ui.spacing?.lg,
+          "24px"
+        ),
+
+      xl:
+        safeSize(
+          ui.spacing?.xl,
+          "32px"
+        ),
+    },
+
+    radius: {
+      input:
+        safeSize(
+          ui.radius?.input,
+          "10px"
+        ),
+
+      card:
+        safeSize(
+          ui.radius?.card,
+          "12px"
+        ),
+
+      button:
+        safeSize(
+          ui.radius?.button,
+          "10px"
+        ),
+    },
+
+    layout: {
+      navigation:
+        safeEnum(
+          ui.layout?.navigation,
+          [
+            "sidebar",
+            "topbar",
+            "hybrid",
+          ],
+          "sidebar"
+        ),
+
+      sidebarWidth:
+        safeSize(
+          ui.layout?.sidebarWidth,
+          "250px"
+        ),
+
+      headerHeight:
+        safeSize(
+          ui.layout?.headerHeight,
+          "68px"
+        ),
+
+      pageMaxWidth:
+        safeSize(
+          ui.layout?.pageMaxWidth,
+          "1400px"
+        ),
+    },
+
+    cardShadow:
+      safeShadow,
+
+    auth:
+      normalizedAuth,
+
+    fontStyle:
+      safeEnum(
+        ui.fontStyle,
+        [
+          "modern",
+          "classic",
+          "technical",
+          "elegant",
+        ],
+        "modern"
+      ),
+
+    headingWeight:
+      safeNumber(
+        ui.headingWeight,
+        700,
+        500,
+        900
+      ),
+
+    bodyWeight:
+      safeNumber(
+        ui.bodyWeight,
+        400,
+        300,
+        600
+      ),
+
+    cardStyle:
+      safeEnum(
+        ui.cardStyle,
+        [
+          "flat",
+          "bordered",
+          "elevated",
+        ],
+        "elevated"
+      ),
+
+    buttonStyle:
+      safeEnum(
+        ui.buttonStyle,
+        [
+          "square",
+          "soft",
+          "rounded",
+          "pill",
+        ],
+        "rounded"
+      ),
+
+    tableStyle:
+      safeEnum(
+        ui.tableStyle,
+        [
+          "minimal",
+          "clean",
+          "striped",
+          "bordered",
+        ],
+        "clean"
+      ),
+
+    formStyle:
+      safeEnum(
+        ui.formStyle,
+        [
+          "stacked",
+          "compact",
+          "two-column",
+        ],
+        "stacked"
+      ),
+
+    visualDensity:
+      safeEnum(
+        ui.visualDensity,
+        [
+          "compact",
+          "comfortable",
+          "spacious",
+        ],
+        "comfortable"
+      ),
+  };
+
+  return specification;
+};
+
+
 const NormalizeSpecification = (
   inputSpecification = {}
 ) => {
@@ -690,6 +1787,27 @@ const NormalizeSpecification = (
 
 
   specification =
+    NormalizePageEntityReferences(
+      specification,
+      warnings
+    );
+
+
+  specification =
+    NormalizeRoleActions(
+      specification,
+      warnings
+    );
+
+
+  specification =
+    SynchronizePageAndApiPermissions(
+      specification,
+      warnings
+    );
+
+
+  specification =
     AddReferenceDisplayFields(
       specification,
       warnings
@@ -705,6 +1823,13 @@ const NormalizeSpecification = (
 
   specification =
     FindRequiredCircularRelationships(
+      specification,
+      warnings
+    );
+
+
+  specification =
+    NormalizeUiSpecification(
       specification,
       warnings
     );

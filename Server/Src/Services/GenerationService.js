@@ -10,9 +10,12 @@ const {
   GenerateClientPackageJson,
   GenerateServerFile,
   GenerateServerAppFile,
-  GenerateEnvironmentFile,
-   GenerateClientEnvironmentFile,
+  GenerateEnvExample,
+  GenerateGitIgnore,
+  GenerateReadme,
+  GenerateClientEnvironmentFile,
   GenerateMainJsx,
+  GenerateAppLayout,
   GenerateAppJsx,
   GenerateIndexHtml,
 } = require("../Generators/ProjectGenerator");
@@ -21,6 +24,12 @@ const {
 const {
   GenerateFrontendFiles,
 } = require("../Generators/FrontendGenerator");
+
+const {
+  GenerateGlobalStyles,
+} = require(
+  "../Generators/UiGenerator"
+);
 
 const {
   GenerateBackendFiles,
@@ -61,7 +70,6 @@ const {
   GenerateThemeCss,
   GenerateLoginPage,
   GenerateRegisterPage,
-  GenerateNavbar,
 } = require("../Generators/FrontendAuthGenerator");
 
 
@@ -419,12 +427,22 @@ const CreateFrontendFiles = (
       "Services"
     );
 
+  const layoutsDirectory =
+    path.join(
+      clientSrcDirectory,
+      "Layouts"
+    );
+
   EnsureDirectoryExists(
     pagesDirectory
   );
 
   EnsureDirectoryExists(
     servicesDirectory
+  );
+
+  EnsureDirectoryExists(
+    layoutsDirectory
   );
 
   /* -----------------------------------------
@@ -473,13 +491,40 @@ const CreateFrontendFiles = (
       )
     );
 
+  const globalStyles =
+    GenerateGlobalStyles(
+      specification
+    );
+
+  const globalStylesPath =
+    WriteGeneratedFile(
+      clientSrcDirectory,
+      "index.css",
+      globalStyles
+    );
+
+  const appLayoutCode =
+    GenerateAppLayout(
+      specification
+    );
+
+  const appLayoutPath =
+    WriteGeneratedFile(
+      layoutsDirectory,
+      "AppLayout.jsx",
+      appLayoutCode
+    );
+
 
   return {
     projectFolderName,
     pagesDirectory,
     servicesDirectory,
+    layoutsDirectory,
     generatedPages,
     apiFilePath,
+    globalStylesPath,
+    appLayoutPath,
   };
 };
 
@@ -539,6 +584,20 @@ const CreateFullProject = (
   EnsureDirectoryExists(serverDirectory);
   EnsureDirectoryExists(serverSrcDirectory);
 
+  WriteGeneratedFile(
+    projectRoot,
+    "README.md",
+    GenerateReadme(
+      specification
+    )
+  );
+
+  WriteGeneratedFile(
+    projectRoot,
+    ".gitignore",
+    GenerateGitIgnore()
+  );
+
   // Generate schemas
   const schemaResult = CreateSchemaFiles(
     projectId,
@@ -578,11 +637,11 @@ const frontendAuthResult =
     GenerateServerPackageJson(appName)
   );
 
-  // Server .env
+  // Server .env.example
   WriteGeneratedFile(
     serverDirectory,
-    ".env",
-    GenerateEnvironmentFile(appName)
+    ".env.example",
+    GenerateEnvExample()
   );
 
   // Server.js
@@ -608,10 +667,10 @@ WriteGeneratedFile(
   GenerateClientPackageJson(appName)
 );
 
-// Client .env
+// Client .env.example
 WriteGeneratedFile(
   clientDirectory,
-  ".env",
+  ".env.example",
   GenerateClientEnvironmentFile()
 );
 
@@ -922,11 +981,6 @@ const CreateFrontendAuthFiles = (
     "Pages"
   );
 
-  const componentsDirectory = path.join(
-  clientSrcDirectory,
-  "Components"
-);
-
   EnsureDirectoryExists(
     contextDirectory
   );
@@ -946,11 +1000,6 @@ const CreateFrontendAuthFiles = (
   EnsureDirectoryExists(
     pagesDirectory
   );
-
-
-  EnsureDirectoryExists(
-  componentsDirectory
-);
 
   const generatedFiles = [];
 
@@ -985,7 +1034,8 @@ const CreateFrontendAuthFiles = (
       GenerateLoginPage(
         appName,
         specification.roles || [],
-        specification.pages || []
+        specification.pages || [],
+        specification
       )
     )
   );
@@ -996,18 +1046,8 @@ const CreateFrontendAuthFiles = (
       "RegisterPage.jsx",
       GenerateRegisterPage(
         appName,
-        specification.roles || []
-      )
-    )
-  );
-
-  generatedFiles.push(
-    WriteGeneratedFile(
-      componentsDirectory,
-      "Navbar.jsx",
-      GenerateNavbar(
-        appName,
-        specification.pages || []
+        specification.roles || [],
+        specification
       )
     )
   );
