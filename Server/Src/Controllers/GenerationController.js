@@ -2,6 +2,10 @@ const RequirementSession = require(
   "../Models/RequirementSession"
 );
 
+const Project = require(
+  "../Models/Project"
+);
+
 const path = require("path");
 
 const fs = require("fs");
@@ -56,6 +60,13 @@ const CreateGenerationSpecification = async (
       new Date();
 
     await session.save();
+
+    await Project.findByIdAndUpdate(
+      session.project,
+      {
+        status: "blueprint-ready",
+      }
+    );
 
     return res.status(200).json({
       message:
@@ -317,6 +328,15 @@ const GenerateFullProject = async (
     const result = CreateFullProject(
       session.project.toString(),
       session.generationSpecification
+    );
+
+    await Project.findByIdAndUpdate(
+      session.project,
+      {
+        status: "generated",
+        generatedPath:
+          result.projectRoot,
+      }
     );
 
     return res.status(200).json({

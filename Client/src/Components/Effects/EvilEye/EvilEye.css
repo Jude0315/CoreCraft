@@ -1,0 +1,43 @@
+.evil-eye {
+  position: absolute;
+  inset: 20%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.evil-eye-orbit {
+  position: absolute;
+  width: 72%;
+  aspect-ratio: 1.8;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 42%, transparent);
+  border-radius: 999px;
+  filter: drop-shadow(0 0 20px color-mix(in srgb, var(--color-accent) 28%, transparent));
+  opacity: calc(0.24 + (var(--eye-intensity) * 0.38));
+}
+
+.evil-eye-core {
+  width: calc(26px + (var(--eye-intensity) * 28px));
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #ffffff 0 12%, var(--color-primary) 13% 42%, transparent 44%),
+    radial-gradient(circle, var(--color-accent), transparent 72%);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--color-primary) 54%, transparent);
+  opacity: calc(0.62 + (var(--eye-intensity) * 0.28));
+}
+
+.evil-eye-generating .evil-eye-core {
+  animation: eye-focus 1.8s ease-in-out infinite;
+}
+
+@keyframes eye-focus {
+  0%,
+  100% {
+    transform: scale(0.92);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+}

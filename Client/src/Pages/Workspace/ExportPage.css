@@ -1,0 +1,569 @@
+.export-page {
+  width:
+    min(900px, 100%);
+
+  margin:
+    0 auto;
+
+  padding:
+    50px 0 70px;
+
+  text-align:
+    center;
+}
+
+/* ========================
+   COMPLETE MARK
+======================== */
+
+.export-complete-mark {
+  width: 62px;
+  height: 62px;
+
+  margin:
+    0 auto 20px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius:
+    50%;
+
+  color:
+    #e6fdff;
+
+  font-size:
+    13px;
+
+  font-weight:
+    900;
+
+  border:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.55
+    );
+
+  background:
+    rgba(
+      70,
+      217,
+      255,
+      0.07
+    );
+
+  box-shadow:
+    0 0 18px
+      rgba(
+        70,
+        217,
+        255,
+        0.25
+      ),
+    0 0 50px
+      rgba(
+        70,
+        217,
+        255,
+        0.1
+      );
+}
+
+/* ========================
+   HEADING
+======================== */
+
+.export-heading > span {
+  color:
+    #46d9ff;
+
+  font-size:
+    8px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    0.25em;
+}
+
+.export-heading h1 {
+  margin:
+    9px 0 9px;
+
+  font-size:
+    clamp(
+      38px,
+      6vw,
+      68px
+    );
+
+  font-weight:
+    280;
+
+  letter-spacing:
+    -0.045em;
+}
+
+.export-heading p {
+  max-width:
+    580px;
+
+  margin:
+    0 auto;
+
+  color:
+    var(--cc-muted);
+
+  line-height:
+    1.7;
+}
+
+/* ========================
+   STATS
+======================== */
+
+.export-stats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  margin:
+    40px 0;
+
+  border-top:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.08
+    );
+
+  border-bottom:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.08
+    );
+}
+
+.export-stats > div {
+  padding:
+    22px;
+
+  border-right:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.07
+    );
+}
+
+.export-stats
+> div:last-child {
+  border-right: 0;
+}
+
+.export-stats strong {
+  display: block;
+
+  color:
+    #ddfbff;
+
+  font-size:
+    28px;
+
+  font-weight:
+    300;
+}
+
+.export-stats span {
+  display: block;
+
+  margin-top:
+    4px;
+
+  color:
+    var(--cc-muted);
+
+  font-size:
+    8px;
+
+  letter-spacing:
+    0.13em;
+
+  text-transform:
+    uppercase;
+}
+
+/* ========================
+   DELIVERABLES
+======================== */
+
+.export-deliverables {
+  width:
+    min(700px, 100%);
+
+  margin:
+    0 auto;
+
+  text-align:
+    left;
+}
+
+.export-deliverable {
+  min-height:
+    63px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    14px;
+
+  padding:
+    11px 5px;
+
+  border-bottom:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.045
+    );
+}
+
+.export-deliverable
+> span {
+  width: 26px;
+  height: 26px;
+
+  flex:
+    0 0 auto;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border-radius:
+    50%;
+
+  color:
+    #a9f3ff;
+
+  background:
+    rgba(
+      70,
+      217,
+      255,
+      0.07
+    );
+
+  font-size:
+    8px;
+
+  font-weight:
+    900;
+}
+
+.export-deliverable strong,
+.export-deliverable small {
+  display:
+    block;
+}
+
+.export-deliverable strong {
+  color:
+    rgba(
+      226,
+      248,
+      253,
+      0.85
+    );
+
+  font-size:
+    11px;
+
+  font-weight:
+    550;
+}
+
+.export-deliverable small {
+  margin-top:
+    4px;
+
+  color:
+    var(--cc-muted);
+
+  font-size:
+    9px;
+}
+
+/* ========================
+   ACTIONS
+======================== */
+
+.export-actions {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    15px;
+
+  margin-top:
+    38px;
+}
+
+.export-actions button {
+  padding:
+    12px 18px;
+
+  border-radius:
+    10px;
+}
+
+.export-back {
+  border:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.15
+    );
+
+  background:
+    transparent;
+
+  color:
+    rgba(
+      204,
+      231,
+      238,
+      0.7
+    );
+}
+
+.export-download {
+  border: 0;
+
+  padding:
+    13px 21px !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      #46d9ff,
+      #a9f3ff
+    );
+
+  color:
+    #011017;
+
+  font-weight:
+    900;
+
+  box-shadow:
+    0 0 25px
+    rgba(
+      70,
+      217,
+      255,
+      0.14
+    );
+}
+
+.export-download:disabled {
+  opacity:
+    0.45;
+
+  cursor:
+    not-allowed;
+}
+
+.export-download-error {
+  max-width:
+    650px;
+
+  margin:
+    25px auto 0;
+
+  padding:
+    10px 12px;
+
+  border:
+    1px solid
+    rgba(
+      239,
+      68,
+      68,
+      0.28
+    );
+
+  border-radius:
+    8px;
+
+  background:
+    rgba(
+      239,
+      68,
+      68,
+      0.07
+    );
+
+  color:
+    #fca5a5;
+
+  font-size:
+    10px;
+}
+
+/* ========================
+   LOADING / ERROR
+======================== */
+
+.export-loading,
+.export-error {
+  min-height:
+    calc(
+      100vh - 190px
+    );
+
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  justify-content:
+    center;
+
+  align-items:
+    center;
+
+  text-align:
+    center;
+}
+
+.export-loading-core {
+  width:
+    25px;
+
+  height:
+    25px;
+
+  margin-bottom:
+    18px;
+
+  border-radius:
+    50%;
+
+  border:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.18
+    );
+
+  border-top-color:
+    #46d9ff;
+
+  animation:
+    exportRotate
+    1s linear infinite;
+}
+
+.export-loading small,
+.export-error > span {
+  color:
+    #46d9ff;
+
+  font-size:
+    8px;
+
+  letter-spacing:
+    0.2em;
+}
+
+.export-loading p,
+.export-error p {
+  color:
+    var(--cc-muted);
+}
+
+.export-error button {
+  margin-top:
+    18px;
+
+  padding:
+    10px 15px;
+
+  border:
+    1px solid
+    rgba(
+      70,
+      217,
+      255,
+      0.2
+    );
+
+  border-radius:
+    9px;
+
+  background:
+    transparent;
+
+  color:
+    #a9f3ff;
+}
+
+@keyframes exportRotate {
+  to {
+    transform:
+      rotate(360deg);
+  }
+}
+
+@media (
+  max-width: 700px
+) {
+
+  .export-stats {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+  .export-actions {
+    flex-direction:
+      column-reverse;
+  }
+
+  .export-actions button {
+    width:
+      100%;
+  }
+}

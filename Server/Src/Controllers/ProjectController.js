@@ -29,7 +29,47 @@ const GetProjects = async (req, res) => {
   }
 };
 
+const GetProjectById = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findOne({
+      _id: projectId,
+      user: req.user._id,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    res.json(project);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+const UpdateProjectStatus = async (
+  projectId,
+  status,
+) => {
+  return Project.findByIdAndUpdate(
+    projectId,
+    {
+      status,
+    },
+    {
+      new: true,
+    },
+  );
+};
+
 module.exports = {
   CreateProject,
   GetProjects,
+  GetProjectById,
+  UpdateProjectStatus,
 };

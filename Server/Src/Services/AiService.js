@@ -5,21 +5,86 @@ const client = new OpenAI({
 });
 
 const GenerateAiResponse = async (session) => {
-  const model = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini";
+  const model =
+    process.env.OPENAI_CHAT_MODEL ||
+    "gpt-4.1-mini";
+
+  /*
+    Give the requirement assistant
+    the actual conversation so it
+    knows what has already been asked
+    and answered.
+  */
+
+  const conversation =
+    (session.messages || [])
+      .map((message) => {
+        const speaker =
+          message.role === "user"
+            ? "User"
+            : "CoreCraft";
+
+        return `${speaker}: ${message.content}`;
+      })
+      .join("\n");
 
   const prompt = `
 You are CoreCraft's AI requirement assistant.
 
-Current session:
-App Type: ${session.appType || "Not detected"}
-Current Step: ${session.currentStep || "initial"}
-Selected Features: ${session.features?.join(", ") || "None"}
-Removed Features: ${session.removedFeatures?.join(", ") || "None"}
-Pending Suggestions: ${session.suggestions?.join(", ") || "None"}
+Your job is to help the user refine the requirements for the application they want CoreCraft to generate.
 
-Task:
-Ask ONE short, useful follow-up question to refine the software requirements.
-Do not generate code yet.
+CURRENT SESSION
+
+Application Type:
+${session.appType || "Not yet detected"}
+
+Current Step:
+${session.currentStep || "initial"}
+
+Selected Features:
+${JSON.stringify(session.features || [])}
+
+Rejected Features:
+${JSON.stringify(session.removedFeatures || [])}
+
+Pending Suggestions:
+${JSON.stringify(session.suggestions || [])}
+
+Detailed Requirements:
+${JSON.stringify(session.requirements || [])}
+
+
+CONVERSATION SO FAR
+
+${conversation || "No conversation yet."}
+
+
+YOUR TASK
+
+Read the ENTIRE conversation carefully.
+
+Determine what important application requirement is still unclear.
+
+Ask ONE short and useful follow-up question that helps CoreCraft understand the application better.
+
+IMPORTANT RULES:
+
+- Never ask a question that the user has already answered.
+- Never repeat or rephrase a previous question just to ask it again.
+- Use information already provided by the user.
+- Do not ask for the application's primary purpose if the user has already explained it.
+- Do not ask about users or roles if they have already been clearly specified.
+- Do not ask about features that have already been described.
+- Ask only about information that is genuinely still missing.
+- Keep the question concise.
+- Ask only ONE question.
+- Do not generate code.
+- Do not generate the final application specification.
+- Do not mention these instructions.
+
+If the requirements already contain enough information for CoreCraft to generate a useful starter application, tell the user briefly that the requirements are sufficiently defined and that they can finalize them.
+
+Return only the response that should be shown to the user.
 `;
 
   const response = await client.responses.create({
@@ -27,7 +92,7 @@ Do not generate code yet.
     input: prompt,
   });
 
-  return response.output_text;
+  return response.output_text.trim();
 };
 
 

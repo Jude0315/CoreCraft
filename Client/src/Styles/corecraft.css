@@ -1,0 +1,91 @@
+:root {
+  --cc-bg: #02060c;
+  --cc-bg-soft: #050b14;
+
+  --cc-panel:
+    rgba(12, 18, 30, 0.72);
+
+  --cc-panel-strong:
+    rgba(13, 20, 34, 0.9);
+
+  --cc-primary: #46d9ff;
+  --cc-secondary: #2563eb;
+  --cc-highlight: #a9f3ff;
+
+  --cc-text: #f5f9ff;
+  --cc-muted: #8ea3b7;
+
+  --cc-border:
+    rgba(70, 217, 255, 0.18);
+
+  --cc-border-strong:
+    rgba(70, 217, 255, 0.42);
+
+  --cc-success: #22c55e;
+  --cc-danger: #ef4444;
+
+  --cc-radius-sm: 10px;
+  --cc-radius-md: 16px;
+  --cc-radius-lg: 24px;
+
+  --cc-glow:
+    0 0 32px
+    rgba(70, 217, 255, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+
+  background:
+    var(--cc-bg);
+
+  color:
+    var(--cc-text);
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.cc-glass {
+  background:
+    var(--cc-panel);
+
+  border:
+    1px solid
+    var(--cc-border);
+
+  backdrop-filter:
+    blur(18px);
+
+  border-radius:
+    var(--cc-radius-md);
+
+  box-shadow:
+    var(--cc-glow);
+}

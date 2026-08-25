@@ -1,0 +1,89 @@
+.magic-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.magic-ring {
+  position: absolute;
+  width: calc(30% + (var(--ring-index) * 15%));
+  aspect-ratio: 1;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-primary)
+      calc(52% - (var(--ring-index) * 7%)),
+      transparent
+    );
+  border-radius: 999px;
+  opacity: calc(0.9 - (var(--ring-index) * 0.13));
+  filter: blur(calc(var(--ring-index) * 0.2px));
+  box-shadow:
+    0 0 calc(16px + (var(--ring-glow) * 26px))
+      color-mix(in srgb, var(--color-primary) 28%, transparent),
+    inset 0 0 20px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  animation:
+    ring-spin calc(var(--ring-speed) + (var(--ring-index) * 1.2s)) linear infinite,
+    ring-pulse 2.8s ease-in-out infinite,
+    ring-ripple-fade 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--ring-index) * -0.4s);
+}
+
+.magic-ring::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background:
+    conic-gradient(
+      from 90deg,
+      transparent,
+      color-mix(in srgb, var(--color-primary) 78%, transparent) 14%,
+      color-mix(in srgb, var(--color-accent) 88%, transparent) 28%,
+      transparent 44%,
+      color-mix(in srgb, var(--color-primary) 36%, transparent) 58%,
+      transparent 72%,
+      color-mix(in srgb, var(--color-accent) 40%, transparent) var(--ring-progress),
+      transparent
+    );
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 5px),
+      #000 calc(100% - 4px),
+      #000 calc(100% - 2px),
+      transparent 100%
+    );
+}
+
+@keyframes ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ring-ripple-fade {
+  0%,
+  100% {
+    filter: blur(calc(var(--ring-index) * 0.2px));
+  }
+
+  50% {
+    filter: blur(calc(0.5px + (var(--ring-index) * 0.35px)));
+  }
+}
+
+@keyframes ring-pulse {
+  0%,
+  100% {
+    opacity: calc(0.28 + (var(--ring-pulse) * 0.28));
+    scale: 1;
+  }
+
+  50% {
+    opacity: calc(0.48 + (var(--ring-pulse) * 0.36));
+    scale: calc(1.02 + (var(--ring-pulse) * 0.04));
+  }
+}

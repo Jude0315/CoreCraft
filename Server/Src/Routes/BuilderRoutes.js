@@ -9,36 +9,79 @@ const {
   GetFeatureSuggestions,
   AcceptSuggestion,
   RejectSuggestion,
+  GenerateBuilderAiResponse,
+  FinalizeSession,
 } = require("../Controllers/BuilderController");
 
-const AuthMiddleware = require("../Middleware/AuthMiddleware");
+const AuthMiddleware =
+  require("../Middleware/AuthMiddleware");
 
 const Router = express.Router();
 
-// Create session
-Router.post("/session", AuthMiddleware, CreateSession);
+// Requirement session
+Router.post(
+  "/session",
+  AuthMiddleware,
+  CreateSession
+);
 
-// Get session by project
-Router.get("/session/:projectId", AuthMiddleware, GetSession);
+Router.get(
+  "/session/:projectId",
+  AuthMiddleware,
+  GetSession
+);
 
-// Add message
-Router.post("/message/:sessionId", AuthMiddleware, AddMessage);
+// Messages
+Router.post(
+  "/message/:sessionId",
+  AuthMiddleware,
+  AddMessage
+);
 
-// Add feature
-Router.post("/feature/:sessionId", AuthMiddleware, AddFeature);
+// CoreCraft AI response
+Router.post(
+  "/ai-response/:sessionId",
+  AuthMiddleware,
+  GenerateBuilderAiResponse
+);
 
-// Remove feature
-Router.post("/feature/remove/:sessionId", AuthMiddleware, RemoveFeature);
+// Features
+Router.post(
+  "/feature/:sessionId",
+  AuthMiddleware,
+  AddFeature
+);
 
-//Sugestions
+Router.post(
+  "/feature/remove/:sessionId",
+  AuthMiddleware,
+  RemoveFeature
+);
 
-Router.get("/suggestions/:appType", AuthMiddleware, GetFeatureSuggestions);
+// Suggestions
+Router.get(
+  "/suggestions/:appType",
+  AuthMiddleware,
+  GetFeatureSuggestions
+);
 
-//accept suggestion
-Router.post( "/suggestion/accept/:sessionId", AuthMiddleware,AcceptSuggestion);
+Router.post(
+  "/suggestion/accept/:sessionId",
+  AuthMiddleware,
+  AcceptSuggestion
+);
 
-//reject suggestion
-Router.post("/suggestion/reject/:sessionId",AuthMiddleware,RejectSuggestion);
+Router.post(
+  "/suggestion/reject/:sessionId",
+  AuthMiddleware,
+  RejectSuggestion
+);
 
+// Finalize requirement session
+Router.post(
+  "/finalize/:sessionId",
+  AuthMiddleware,
+  FinalizeSession
+);
 
 module.exports = Router;
