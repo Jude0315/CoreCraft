@@ -433,7 +433,7 @@ export default function SpecificationPage() {
 
                       {field.ref && (
                         <span>
-                          -&gt; {field.ref}
+                          Ref {field.ref}
                         </span>
                       )}
                     </div>
@@ -578,7 +578,7 @@ export default function SpecificationPage() {
             )
           }
         >
-          &lt;- Requirements
+          Requirements
         </button>
 
         <button
@@ -590,7 +590,7 @@ export default function SpecificationPage() {
             )
           }
         >
-          Continue to Synthesis -&gt;
+          Continue to Synthesis
         </button>
       </footer>
     </section>

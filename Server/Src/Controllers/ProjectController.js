@@ -1,4 +1,5 @@
 const Project = require("../Models/Project");
+const RequirementSession = require("../Models/RequirementSession");
 
 // Create new project
 const CreateProject = async (req, res) => {
@@ -67,9 +68,44 @@ const UpdateProjectStatus = async (
   );
 };
 
+const DeleteProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findOne({
+      _id: projectId,
+      user: req.user._id,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    await RequirementSession.deleteMany({
+      project: projectId,
+    });
+
+    await Project.deleteOne({
+      _id: projectId,
+    });
+
+    res.json({
+      message:
+        "Project decommissioned successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   CreateProject,
   GetProjects,
   GetProjectById,
+  DeleteProject,
   UpdateProjectStatus,
 };

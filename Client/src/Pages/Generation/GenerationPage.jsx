@@ -305,7 +305,7 @@ export default function GenerationPage() {
               )
             }
           >
-            Review Generated Project -&gt;
+            Review Generated Project
           </button>
         </div>
       )}

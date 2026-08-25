@@ -519,7 +519,7 @@ export default function BuilderPage() {
           >
             {session?.finalized
               ? "Requirements Finalized"
-              : "Finalize Requirements →"}
+              : "Finalize Requirements"}
           </button>
         </aside>
       </div>

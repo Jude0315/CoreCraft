@@ -80,6 +80,17 @@ export function createProject(
   );
 }
 
+export function deleteProject(
+  projectId,
+) {
+  return apiRequest(
+    `/projects/${projectId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export function createRequirementSession(
   projectId,
 ) {

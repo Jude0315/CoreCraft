@@ -148,7 +148,7 @@ export default function ExportPage() {
             )
           }
         >
-          &lt;- Return to Synthesis
+          Return to Synthesis
         </button>
       </section>
     );
@@ -345,7 +345,7 @@ export default function ExportPage() {
             )
           }
         >
-          &lt;- Synthesis
+          Synthesis
         </button>
 
         <button

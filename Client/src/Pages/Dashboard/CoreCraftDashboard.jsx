@@ -9,6 +9,7 @@ import {
 
 import {
   createProject,
+  deleteProject,
   getProjects,
 } from "../../Services/Api";
 
@@ -66,6 +67,11 @@ export default function CoreCraftDashboard() {
     creating,
     setCreating,
   ] = useState(false);
+
+  const [
+    deletingProjectId,
+    setDeletingProjectId,
+  ] = useState(null);
 
   async function loadProjects() {
     try {
@@ -129,6 +135,48 @@ export default function CoreCraftDashboard() {
       );
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDeleteProject(
+    project,
+  ) {
+    const confirmed =
+      window.confirm(
+        `Decommission "${project.name}"?\n\nThis will permanently remove the project and its saved requirement session.`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingProjectId(
+        project._id,
+      );
+
+      setError("");
+
+      await deleteProject(
+        project._id,
+      );
+
+      setProjects(
+        (currentProjects) =>
+          currentProjects.filter(
+            (item) =>
+              item._id !==
+              project._id,
+          ),
+      );
+    } catch (err) {
+      setError(
+        err.message,
+      );
+    } finally {
+      setDeletingProjectId(
+        null,
+      );
     }
   }
 
@@ -242,17 +290,38 @@ export default function CoreCraftDashboard() {
                 </div>
               </div>
 
-              <button
-                className="dashboard-open"
-                type="button"
-                onClick={() =>
-                  navigate(
-                    `/projects/${project._id}/requirements`,
-                  )
-                }
-              >
-                Open -&gt;
-              </button>
+              <div className="dashboard-project-actions">
+                <button
+                  className="dashboard-open"
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/projects/${project._id}/requirements`,
+                    )
+                  }
+                >
+                  Open
+                </button>
+
+                <button
+                  className="dashboard-decommission"
+                  type="button"
+                  disabled={
+                    deletingProjectId ===
+                    project._id
+                  }
+                  onClick={() =>
+                    handleDeleteProject(
+                      project,
+                    )
+                  }
+                >
+                  {deletingProjectId ===
+                  project._id
+                    ? "Decommissioning..."
+                    : "Decommission"}
+                </button>
+              </div>
             </article>
           ))}
         </div>
