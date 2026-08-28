@@ -4,6 +4,8 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Produces the next requirement-question shown in the builder chat.
+// AI assistance is intentionally used here to keep the questions adaptive to the user's idea.
 const GenerateAiResponse = async (session) => {
   const model =
     process.env.OPENAI_CHAT_MODEL ||
@@ -100,6 +102,8 @@ Return only the response that should be shown to the user.
 const ExtractRequirementsFromMessage = async (message, session) => {
   const model = process.env.OPENAI_CHAT_MODEL || "gpt-4.1-mini";
 
+  // Extracts structured requirements from natural language.
+  // AI help is used for interpretation, while the server stores the result in a predictable shape.
   const prompt = `
 You are CoreCraft's AI requirement extraction engine.
 
@@ -144,6 +148,7 @@ Rules:
 };
 /*--------------------------------------------------------------------------------- */
 const GenerateRequirementSummary = async (session) => {
+  // Creates a human-readable bridge between the chat history and the final app blueprint.
   const prompt = `
 You are CoreCraft's software requirements analyst.
 
@@ -1371,6 +1376,8 @@ Return only the final JSON.
       .trim();
 
     try {
+      // AI assistance shapes the architecture JSON here.
+      // The result is still parsed and later normalized before CoreCraft writes files.
       return JSON.parse(output);
     } catch (error) {
       console.error(

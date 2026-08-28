@@ -75,6 +75,7 @@ const Tasks = () => {
     [{"role":"administrator","actions":["view","create","edit"]},{"role":"project manager","actions":["view","create","edit"]},{"role":"team member","actions":["view","edit"]}];
 
 
+  // Uses generated role rules to decide which buttons this user can see.
   const CanPerformAction = (
     role,
     action,
@@ -183,6 +184,8 @@ const Tasks = () => {
 
 
 
+  // These fields were generated from the CoreCraft blueprint.
+  // AI assistance helped turn the requirements into this editable form structure.
   const formFields =
     [{"name":"title","type":"String","required":true,"unique":false,"defaultValue":null,"ref":"","referenceFilter":null,"displayFields":["title"],"enumValues":[],"description":"The title of the task."},{"name":"priority","type":"String","required":true,"unique":false,"defaultValue":null,"ref":"","referenceFilter":null,"displayFields":[],"enumValues":["low","medium","high"],"description":"The priority level of the task."},{"name":"status","type":"String","required":true,"unique":false,"defaultValue":"pending","ref":"","referenceFilter":null,"displayFields":[],"enumValues":["pending","in progress","completed"],"description":"Current status of the task."},{"name":"project","type":"ObjectId","required":true,"unique":false,"defaultValue":null,"ref":"Project","referenceFilter":null,"displayFields":["title"],"enumValues":[],"description":"Reference to the project this task belongs to."},{"name":"assignedTo","type":"ObjectId","required":true,"unique":false,"defaultValue":null,"ref":"User","referenceFilter":{"field":"role","operator":"equals","value":"team member"},"displayFields":["name"],"enumValues":[],"description":"The user assigned to this task."}];
 

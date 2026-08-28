@@ -36,6 +36,7 @@ const App = () => {
     <Routes>
 
 
+        {/* Start unauthenticated visitors at login. */}
         <Route
           path="/"
           element={
@@ -48,6 +49,7 @@ const App = () => {
 
 
 
+        {/* Public auth routes. */}
         <Route
           path="/login"
           element={
@@ -66,6 +68,7 @@ const App = () => {
 
 
 
+        {/* Protected app shell. Nested pages still keep their own role restrictions. */}
         <Route
           element={
             <ProtectedRoute>
@@ -77,6 +80,7 @@ const App = () => {
         >
 
 
+          {/* Dashboard and module pages generated from the CoreCraft blueprint. */}
           <Route
             path="/dashboard"
             element={
@@ -124,6 +128,7 @@ const App = () => {
         </Route>
 
 
+        {/* Unknown routes are redirected back into the app entry point. */}
         <Route
           path="*"
           element={

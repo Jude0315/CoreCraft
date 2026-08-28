@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 // Specific assignments within projects that need to be completed.
 // This model was generated dynamically by CoreCraft.
+// AI assistance helped identify this entity from the saved project requirements.
 // Add domain-specific validation or business rules here if needed.
 
 // This Mongoose schema defines the structure of each Task document stored in MongoDB.

@@ -71,6 +71,7 @@ const FindEntity = (
 
 
 const GetReferenceFields = (entity) => {
+  // ObjectId fields become dropdowns when the referenced model is available.
   return (
     entity?.fields || []
   ).filter(
@@ -417,6 +418,7 @@ const GenerateFrontendFiles = (
           )
       )
       .map((page) => {
+      // AI assistance helps decide which pages exist; this generator converts them to React files.
       const pageName =
         typeof page === "string"
           ? page
@@ -582,6 +584,7 @@ const GeneratePageComponent = (
           )
       : [];
 
+  // Relationship fields use backend lookup endpoints so users can select readable records.
   const apiImportStatement =
     referenceFields.length > 0
       ? `
@@ -876,6 +879,7 @@ ${referenceLoaders}
     canCreate || canEdit
       ? `
 
+  // Lightweight generated validation catches common input mistakes before the API call.
   const formFields =
     ${JSON.stringify(
       fields.filter(
@@ -2351,6 +2355,7 @@ import {
   const loadFunction =
     uniqueSources.length > 0
       ? `
+  // Loads simple record counts for dashboard summary cards.
   const LoadDashboardData = async () => {
 ${loadCode}
   };

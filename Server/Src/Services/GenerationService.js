@@ -79,6 +79,8 @@ const RemoveGeneratedDirectoryIfExists = (
   projectRoot,
   directoryPath
 ) => {
+  // Only delete generated subfolders that resolve inside this project root.
+  // This protects unrelated files if a path is built incorrectly.
   const relativePath =
     path.relative(
       projectRoot,
@@ -126,6 +128,7 @@ const GenerateSpecification = async (session) => {
 
   // Ask the AI architecture engine to understand
   // the user's application dynamically.
+  // AI assistance is used at this blueprint stage so CoreCraft can support many app types.
   const rawSpecification =
     await GenerateDynamicApplicationSpecification(
       session
@@ -254,6 +257,7 @@ const CreateSchemaFiles = (
 
   EnsureDirectoryExists(modelsDirectory);
 
+  // Writes one Mongoose model file per generated entity.
   const generatedFiles = schemaFiles.map(
     (schemaFile) => {
       const filePath = WriteGeneratedFile(
@@ -325,6 +329,7 @@ const CreateBackendFiles = (
   EnsureDirectoryExists(controllersDirectory);
   EnsureDirectoryExists(routesDirectory);
 
+  // Converts each API module into an Express controller file.
   const generatedControllers =
     backendFiles.controllerFiles.map(
       (controllerFile) => {
@@ -375,6 +380,7 @@ const CreateBackendFiles = (
 
   const generatedLookupFiles = [];
 
+  // Lookup endpoints are created only when at least one model references another model.
   if (
     referenceFields.length > 0
   ) {
@@ -485,6 +491,7 @@ const CreateFrontendFiles = (
      Generate dynamic React pages
      ----------------------------------------- */
 
+  // AI-derived page definitions become real React page components here.
   const generatedPages =
     frontendFiles.pageFiles.map(
       (pageFile) => {
@@ -620,6 +627,7 @@ const CreateFullProject = (
   EnsureDirectoryExists(serverDirectory);
   EnsureDirectoryExists(serverSrcDirectory);
 
+  // Rebuild generated source folders while keeping the overall project folder.
   RemoveGeneratedDirectoryIfExists(
     projectRoot,
     path.join(
@@ -854,6 +862,7 @@ const CreateAuthenticationFiles = (
       specification
     );
 
+  // Public-only applications skip auth files instead of receiving unused code.
   if (!hasAuthentication) {
     return {
       generated: false,
@@ -993,6 +1002,7 @@ const CreateFrontendAuthFiles = (
       specification
     );
 
+  // Keep generated projects smaller when login/register are not part of the app.
   if (!hasAuthentication) {
     return {
       generated: false,

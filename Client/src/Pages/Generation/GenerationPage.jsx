@@ -64,6 +64,8 @@ export default function GenerationPage() {
     setComplete,
   ] = useState(false);
 
+  // Runs the visible generation pipeline one stage at a time.
+  // This mirrors the backend flow: schemas, backend, frontend, then full project assembly.
   async function runSynthesis(
     sessionId,
   ) {
@@ -81,6 +83,7 @@ export default function GenerationPage() {
         "Creating database architecture",
       );
 
+      // First create Mongoose models from the saved specification.
       await generateSchemas(
         sessionId,
       );
@@ -91,6 +94,7 @@ export default function GenerationPage() {
         "Synthesizing backend",
       );
 
+      // Then generate controllers and routes for the selected API modules.
       await generateBackend(
         sessionId,
       );
@@ -101,6 +105,7 @@ export default function GenerationPage() {
         "Building application interface",
       );
 
+      // Then generate React pages and frontend API helpers.
       await generateFrontend(
         sessionId,
       );
@@ -111,6 +116,7 @@ export default function GenerationPage() {
         "Assembling application",
       );
 
+      // Finally write the complete downloadable MERN project structure.
       await generateFullProject(
         sessionId,
       );
@@ -147,6 +153,7 @@ export default function GenerationPage() {
     }
   }
 
+  // Loads the current session and starts generation only when the blueprint is ready.
   async function initializeGeneration() {
     try {
       setError("");
@@ -215,6 +222,7 @@ export default function GenerationPage() {
         return;
       }
 
+      // Prevents React's development re-rendering from starting duplicate generation runs.
       startedRef.current =
         true;
 

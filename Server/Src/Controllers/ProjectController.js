@@ -1,7 +1,7 @@
 const Project = require("../Models/Project");
 const RequirementSession = require("../Models/RequirementSession");
 
-// Create new project
+// Creates a CoreCraft project owned by the logged-in user.
 const CreateProject = async (req, res) => {
   try {
     const { name } = req.body;
@@ -17,7 +17,7 @@ const CreateProject = async (req, res) => {
   }
 };
 
-// Get all projects for logged-in user
+// Lists only projects owned by the logged-in user.
 const GetProjects = async (req, res) => {
   try {
     const Projects = await Project.find({
@@ -57,6 +57,7 @@ const UpdateProjectStatus = async (
   projectId,
   status,
 ) => {
+  // Used by generation steps to move the project through the workflow.
   return Project.findByIdAndUpdate(
     projectId,
     {
@@ -83,6 +84,7 @@ const DeleteProject = async (req, res) => {
       });
     }
 
+    // Remove requirement sessions first so deleted projects do not leave orphaned builder data.
     await RequirementSession.deleteMany({
       project: projectId,
     });

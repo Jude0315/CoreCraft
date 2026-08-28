@@ -23,6 +23,7 @@ const app =
   express();
 
 
+// Shared middleware used by every API route in this generated backend.
 app.use(cors());
 
 app.use(
@@ -30,6 +31,7 @@ app.use(
 );
 
 
+// Connects the generated Express server to the MongoDB database.
 mongoose
   .connect(
     process.env.MONGO_URI
@@ -47,6 +49,7 @@ mongoose
   });
 
 
+// Authentication and lookup routes support the generated role-based pages.
 app.use(
   "/api/auth",
   AuthRoutes
@@ -57,6 +60,8 @@ app.use(
   LookupRoutes
 );
 
+// Business API routes generated from the CoreCraft application blueprint.
+// The blueprint was shaped with AI assistance, then written as standard Express code.
 app.use(
   "/api/project",
   ProjectRoutes

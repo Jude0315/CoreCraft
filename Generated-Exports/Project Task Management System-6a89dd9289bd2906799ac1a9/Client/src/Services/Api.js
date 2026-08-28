@@ -11,6 +11,7 @@ const API = axios.create({
     API_URL,
 });
 
+// Adds the saved JWT to requests that need authentication.
 API.interceptors.request.use(
   (config) => {
     const token =
@@ -28,6 +29,8 @@ API.interceptors.request.use(
   }
 );
 
+// API groups mirror the generated Express route modules on the backend.
+// CoreCraft's AI-assisted blueprint decided these modules; this file only wraps HTTP calls.
 export const ProjectApi = {
   getAll: () =>
     API.get("/project"),

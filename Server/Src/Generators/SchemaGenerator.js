@@ -41,6 +41,7 @@ const GenerateFieldDefinition = (field) => {
     supportedTypes[field.type] ||
     "String";
 
+  // Converts the normalized AI blueprint field into a Mongoose schema property.
   const properties = [
     `type: ${mongooseType}`,
   ];
@@ -136,6 +137,7 @@ const GenerateSchemaFile = (
 
 // ${entityDescription}
 // This model was generated dynamically by CoreCraft.
+// AI assistance may have helped identify this entity from the user's requirements.
 // Add domain-specific validation or business rules here if needed.
 
 ${GenerateSectionComment([

@@ -2,6 +2,8 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000/api";
 
+// Shared API helper for the CoreCraft frontend.
+// It attaches the saved auth token and normalizes JSON/error handling.
 export async function apiRequest(
   endpoint,
   options = {},
@@ -19,6 +21,7 @@ export async function apiRequest(
   };
 
   if (token) {
+    // Protected backend routes expect a Bearer token in this header.
     headers.Authorization =
       `Bearer ${token}`;
   }
@@ -32,7 +35,7 @@ export async function apiRequest(
       },
     );
 
-  let data = null;
+  let data;
 
   try {
     data =
@@ -51,6 +54,7 @@ export async function apiRequest(
   return data;
 }
 
+// Project dashboard requests.
 export function getProjects() {
   return apiRequest(
     "/projects",
@@ -91,6 +95,7 @@ export function deleteProject(
   );
 }
 
+// Requirement-builder requests used while the user explains the application.
 export function createRequirementSession(
   projectId,
 ) {
@@ -228,6 +233,7 @@ export function finalizeRequirementSession(
   );
 }
 
+// Generation requests run each stage of turning the blueprint into code.
 export function generateSpecification(
   sessionId,
 ) {
@@ -327,6 +333,8 @@ export async function downloadGeneratedProject(
   const blob =
     await response.blob();
 
+  // The backend sends the generated ZIP as a file response.
+  // This creates a temporary browser download link for that ZIP.
   const disposition =
     response.headers.get(
       "content-disposition",

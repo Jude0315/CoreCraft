@@ -189,6 +189,7 @@ const GenerateBackendFiles = (
   const controllerFiles = [];
   const routeFiles = [];
 
+  // Each entity from the AI-shaped specification gets a matching controller and router.
   entities.forEach((entity) => {
     const entityName =
       GetEntityName(entity);
@@ -278,6 +279,7 @@ const GenerateController = (
       entitySpecification
     );
 
+  // AI assistance helps decide the operations, but this generator writes the final Express code.
   const functions = [];
   const exportsList = [];
 
@@ -594,6 +596,7 @@ const GetRolesForOperation = (
           operation,
         ];
 
+  // Match page-style actions such as "view" and "edit" to API-style operations.
   return roleActions
     .filter((entry) =>
       (entry.actions || [])

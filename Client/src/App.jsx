@@ -18,6 +18,7 @@ import ProtectedRoute from "./Routes/ProtectedRoute";
 export default function App() {
   return (
     <Routes>
+      {/* Public authentication screens. */}
       <Route
         path="/login"
         element={<LoginPage />}
@@ -35,6 +36,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        {/* Main authenticated CoreCraft workspace. */}
         <Route
           path="/dashboard"
           element={<CoreCraftDashboard />}
@@ -49,6 +51,7 @@ export default function App() {
           path="/projects/:projectId"
           element={<ProjectWorkspaceLayout />}
         >
+          {/* Project workflow: requirements, specification, generation, export. */}
           <Route
             index
             element={
@@ -81,6 +84,7 @@ export default function App() {
         </Route>
       </Route>
 
+      {/* Default navigation keeps users inside the dashboard experience. */}
       <Route
         path="/"
         element={

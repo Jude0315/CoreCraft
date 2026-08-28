@@ -47,7 +47,8 @@ const CreateGenerationSpecification = async (
       });
     }
 
-    // Dynamic AI-generated architecture
+    // Dynamic AI-assisted architecture blueprint.
+    // The service validates and normalizes the result before file generation uses it.
     const specification =
       await GenerateSpecification(
         session
@@ -128,6 +129,7 @@ const GenerateSchemas = async (
       });
     }
 
+    // Writes Mongoose model files from the saved generation specification.
     const result = CreateSchemaFiles(
       session.project.toString(),
       session.generationSpecification
@@ -196,6 +198,7 @@ const GenerateBackend = async (
       });
     }
 
+    // Writes Express controllers and routes from the saved API modules.
     const result = CreateBackendFiles(
       session.project.toString(),
       session.generationSpecification
@@ -258,6 +261,7 @@ const GenerateFrontend = async (req, res) => {
       });
     }
 
+    // Writes React pages, layout support, styles, and frontend API helpers.
     const result = CreateFrontendFiles(
       session.project.toString(),
       session.generationSpecification
@@ -325,6 +329,7 @@ const GenerateFullProject = async (
       });
     }
 
+    // Assembles the full MERN folder structure for download/export.
     const result = CreateFullProject(
       session.project.toString(),
       session.generationSpecification
@@ -403,6 +408,7 @@ const ResolveGeneratedProject = (
       projectFolderName
     );
 
+  // Validate the resolved path before zipping so only generated project folders are exported.
   const relativeProjectPath =
     path.relative(
       generatedProjectsRoot,
@@ -509,6 +515,7 @@ const DownloadProject = async (
         `${safeProjectName}.zip`
       );
 
+    // Compress the generated project folder into the export ZIP returned to the frontend.
     await CreateProjectZip(
       projectPath,
       zipPath

@@ -12,7 +12,7 @@ const {
   DetermineNextStep,
 } = require("../Services/BuilderService");
 
-// Create new session for a project
+// Creates or reuses the requirement-building session for one project.
 const CreateSession = async (req, res) => {
   try {
     const { projectId } = req.body;
@@ -46,7 +46,7 @@ const CreateSession = async (req, res) => {
   }
 };
 
-// Get session by project
+// Loads the saved requirement session for the logged-in user's project.
 const GetSession = async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -72,7 +72,7 @@ const GetSession = async (req, res) => {
   }
 };
 
-// Add message to session
+// Adds a chat message and extracts useful requirement data from user messages.
 const AddMessage = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -92,6 +92,7 @@ const AddMessage = async (req, res) => {
     */
 
     if (role === "user") {
+      // AI assistance is used here only to interpret the user's wording into features and requirements.
       const extracted =
         await ExtractRequirementsFromMessage(
           content,
@@ -145,10 +146,7 @@ const AddMessage = async (req, res) => {
       }
     }
     
-    /*Extra function added to detect app type */
-
-    //  Detect app type
-// Detect app type and recommend features
+    // Detect app type and recommend features.
 if (!Session.appType && role === "user") {
   const DetectedType = DetectAppType(content);
 
@@ -184,7 +182,7 @@ if (!Session.appType && role === "user") {
   }
 };
 
-// Add feature
+// Manually adds a feature chosen by the user.
 const AddFeature = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -208,7 +206,7 @@ const AddFeature = async (req, res) => {
   }
 };
 
-// Remove feature
+// Removes a feature and remembers that the user rejected it.
 const RemoveFeature = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -301,10 +299,7 @@ const RejectSuggestion = async (req, res) => {
 };
 
 /*-----------------------------------------------------*/
-//Get suggestion
-
-
-
+// Returns predefined helper suggestions for known app-type hints.
 const GetFeatureSuggestions = async (req, res) => {
   try {
     const { appType } = req.params;
@@ -318,7 +313,7 @@ const GetFeatureSuggestions = async (req, res) => {
 };
 
 /*-------------------------------------------------------- */
- // Add message function
+ // Generates the assistant's next requirement question for the session.
 /*-------------------------------------------------------- */
 const GenerateBuilderAiResponse = async (req, res) => {
   try {
@@ -330,6 +325,7 @@ const GenerateBuilderAiResponse = async (req, res) => {
       return res.status(404).json({ message: "Session not found" });
     }
 
+    // The reply is AI-assisted, but it is stored like any other session message.
     const AiReply = await GenerateAiResponse(Session);
 
     Session.messages.push({
@@ -371,6 +367,7 @@ const FinalizeSession = async (req, res) => {
       });
     }
 
+    // Finalization locks the requirement session so generation can use it safely.
     Session.finalized = true;
     Session.finalizedAt = new Date();
     Session.currentStep = "finalized";

@@ -109,6 +109,8 @@ const GenerateUserModel = (
   require("mongoose");
 
 
+// Stores login accounts for the generated application.
+// Roles come from the CoreCraft specification instead of being hardcoded.
 const UserSchema =
   new mongoose.Schema(
     {
@@ -164,6 +166,8 @@ const GenerateAuthController = (
   const defaultRole =
     safeRoles[0];
 
+  // Authentication code is generated from the app roles chosen in the specification.
+  // AI assistance may help identify those roles, but passwords and tokens use standard libraries.
   const userOperations =
     GetUserApiOperations(
       specification
@@ -410,6 +414,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../Models/User");
 
+// Registers a new account and stores only the hashed password.
 const Register = async (req, res) => {
   try {
     const {
@@ -478,6 +483,7 @@ const Register = async (req, res) => {
   }
 };
 
+// Verifies credentials and returns a JWT for protected routes.
 const Login = async (req, res) => {
   try {
     const {
@@ -545,6 +551,7 @@ const Login = async (req, res) => {
   }
 };
 
+// Returns the authenticated user's profile without exposing the password.
 const GetProfile = async (req, res) => {
   try {
     const user = await User.findById(
@@ -567,6 +574,7 @@ const GetProfile = async (req, res) => {
   }
 };
 
+// Lists users for generated apps that include user management.
 const GetUsers = async (req, res) => {
   try {
     const users =
@@ -586,6 +594,7 @@ const GetUsers = async (req, res) => {
   }
 };
 
+// Loads one user profile by ID while hiding the password field.
 const GetUserById = async (req, res) => {
   try {
     const user =

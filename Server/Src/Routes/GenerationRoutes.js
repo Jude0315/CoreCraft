@@ -15,6 +15,7 @@ const AuthMiddleware = require(
 
 const Router = express.Router();
 
+// Generation endpoints are protected because they read user-owned requirement sessions.
 Router.post(
   "/specification/:sessionId",
   AuthMiddleware,

@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const User = require("../Models/User");
 const GenerateToken = require("../Utils/Token");
 
+// Registers a CoreCraft account and returns a JWT for immediate login.
 const RegisterUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -14,6 +15,7 @@ const RegisterUser = async (req, res) => {
       });
     }
 
+    // Passwords are hashed before storage; plain text passwords are never saved.
     const Salt = await bcrypt.genSalt(10);
 
     const HashedPassword = await bcrypt.hash(password, Salt);
@@ -37,6 +39,7 @@ const RegisterUser = async (req, res) => {
   }
 };
 
+// Verifies login credentials and issues a signed token for protected routes.
 const LoginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
